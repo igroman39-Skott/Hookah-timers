@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e0e10">
+<title>Кальян — таймеры</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; padding:12px; font-family:-apple-system, BlinkMacSystemFont, sans-serif; background:#0e0e10; color:#fff; padding-bottom:90px; }
+  h1 { font-size:20px; margin:0 0 4px; display:flex; justify-content:space-between; align-items:center; }
+  h1 .gear { font-size:24px; cursor:pointer; padding:4px 8px; }
+  h2 { font-size:13px; margin:16px 0 8px; color:#9a9aa0; text-transform:uppercase; letter-spacing:1px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(105px,1fr)); gap:8px; }
+  .card { background:#1c1c1f; border-radius:14px; padding:10px 6px; text-align:center; border:2px solid #2a2a2e; cursor:pointer; user-select:none; position:relative; transition:background .3s, border-color .3s; }
+  .card .name { font-size:13px; color:#e8e8ec; margin-bottom:4px; font-weight:600; }
+  .card .time { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .card .sub  { font-size:10px; color:#aaa; margin-top:2px; height:12px; letter-spacing:.5px; }
+
+  .card.idle    { opacity:.65; }
+  .card.active  { opacity:1; }
+  .card.warn    { animation:pulse-yellow 1.2s infinite; }
+  .card.overdue { animation:pulse-red 1s infinite; }
+  .card.overdue .time { color:#ff6b61; }
+  .card.overdue .sub  { color:#ff6b61; font-weight:700; }
+
+  @keyframes pulse-red    { 0%,100%{ box-shadow:0 0 0 0 rgba(255,59,48,.7); } 50%{ box-shadow:0 0 0 10px rgba(255,59,48,0); } }
+  @keyframes pulse-yellow { 0%,100%{ box-shadow:0 0 0 0 rgba(255,176,32,.6); } 50%{ box-shadow:0 0 0 8px rgba(255,176,32,0); } }
+
+  .toolbar { position:fixed; left:0; right:0; bottom:0; background:#17171a; padding:10px 12px; display:flex; gap:8px; border-top:1px solid #2a2a2e; z-index:10; }
+  .toolbar button { flex:1; padding:12px; border-radius:10px; border:none; font-size:13px; font-weight:600; color:#fff; background:#2f6bff; }
+  .toolbar button.gray { background:#2a2a2e; }
+  .toolbar button.small { flex:0 0 auto; padding:12px 14px; }
+
+  .add-guest { display:flex; gap:6px; margin-bottom:8px; }
+  .add-guest input { flex:1; padding:10px; border-radius:10px; border:1px solid #2a2a2e; background:#1c1c1f; color:#fff; font-size:14px; }
+  .add-guest input.min { max-width:70px; }
+  .add-guest button { padding:10px 14px; border-radius:10px; border:none; background:#2f6bff; color:#fff; font-weight:600; font-size:16px; }
+
+  .guest-del { position:absolute; top:2px; right:4px; font-size:14px; color:#888; padding:4px; z-index:2; }
+
+  /* Панель настроек */
+  .settings-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:100; display:none; }
+  .settings-overlay.open { display:block; }
+  .settings-panel { position:fixed; top:0; right:0; bottom:0; width:min(420px,95vw); background:#15151a; z-index:101; overflow-y:auto; padding:16px; transform:translateX(100%); transition:transform .25s; border-left:1px solid #2a2a2e; }
+  .settings-panel.open { transform:translateX(0); }
+  .settings-panel h3 { font-size:16px; margin:0 0 12px; display:flex; justify-content:space-between; }
+  .settings-panel .close { background:none; border:none; color:#fff; font-size:22px; padding:0 4px; cursor:pointer; }
+  .settings-panel .row { display:flex; gap:6px; align-items:center; margin-bottom:6px; padding:8px; background:#1c1c1f; border-radius:10px; }
+  .settings-panel .row input[type=text] { flex:1; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:6px; padding:6px 8px; font-size:13px; min-width:0; }
+  .settings-panel .row input[type=number] { width:56px; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:6px; padding:6px; font-size:13px; }
+  .settings-panel .row input[type=color] { width:36px; height:36px; border:none; background:none; padding:0; cursor:pointer; }
+  .settings-panel .row button { background:#2a2a2e; border:none; color:#fff; border-radius:6px; padding:6px 10px; font-size:13px; cursor:pointer; }
+  .settings-panel .row button.del { background:#5a1a1a; }
+  .settings-panel .section-title { font-size:12px; color:#9a9aa0; text-transform:uppercase; letter-spacing:1px; margin:16px 0 8px; }
+  .settings-panel .big-btn { width:100%; padding:12px; border-radius:10px; border:none; font-size:14px; font-weight:600; color:#fff; background:#2f6bff; margin-top:8px; cursor:pointer; }
+  .settings-panel .big-btn.gray { background:#2a2a2e; }
+  .settings-panel .big-btn.red { background:#5a1a1a; }
+  .settings-panel textarea { width:100%; height:80px; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:8px; padding:8px; font-size:11px; font-family:monospace; }
+
+  .banner { background:#2b2210; color:#ffb020; border-radius:10px; padding:10px 12px; font-size:12px; margin-bottom:12px; }
+  .banner b { color:#fff; }
+</style>
+</head>
+<body>
+
+<h1>
+  <span>🔥 Таймеры углей</span>
+  <span class="gear" onclick="openSettings()">⚙️</span>
+</h1>
+
+<div class="banner" id="banner">
+  <b>Первый запуск:</b> тапни один раз по любому столу, чтобы разрешить звук. Если звука не слышно — нажми ⚙️ → «Проверить звук» и проверь беззвучный режим iPhone.
+</div>
+
+<h2>Столы</h2>
+<div class="grid" id="tables"></div>
+
+<h2>Постоянные гости</h2>
+<div class="add-guest">
+  <input id="guestName" placeholder="Имя гостя" />
+  <input id="guestMin" class="min" type="number" value="20" min="1" />
+  <button onclick="addGuest()">+</button>
+</div>
+<div class="grid" id="guests"></div>
+
+<div class="toolbar">
+  <button onclick="startAllTables()">▶ Все столы</button>
+  <button class="gray" onclick="resetAll()">⟲ Сброс</button>
+</div>
+
+<!-- Панель настроек -->
+<div class="settings-overlay" id="overlay" onclick="closeSettings()"></div>
+<div class="settings-panel" id="panel">
+  <h3>⚙️ Настройки <button class="close" onclick="closeSettings()">✕</button></h3>
+
+  <button class="big-btn" onclick="testSound()">🔊 Проверить звук</button>
+
+  <div class="section-title">Столы</div>
+  <div id="tableSettings"></div>
+
+  <div class="section-title">Экспорт / Импорт настроек</div>
+  <textarea id="exportArea" placeholder="Здесь появится текст с настройками"></textarea>
+  <button class="big-btn gray" onclick="exportSettings()">📤 Экспорт (скопировать текст)</button>
+  <button class="big-btn gray" onclick="importSettings()">📥 Импорт (вставить и применить)</button>
+
+  <div class="section-title">Опасная зона</div>
+  <button class="big-btn red" onclick="factoryReset()">🗑 Сбросить всё к заводским</button>
+</div>
+
+<script>
+/* ============================================================
+   ЗАВОДСКАЯ КОНФИГУРАЦИЯ СТОЛОВ
+   ============================================================ */
+const DEFAULT_TABLES = [
+  // Столы 1–7 — зелёные
+  ...Array.from({length:7}, (_,i) => ({ id:'t'+(i+1), name:'Стол '+(i+1), color:'#4caf50', intervalMin:18 })),
+  // Столы 8–9 — серые
+  ...Array.from({length:2}, (_,i) => ({ id:'t'+(i+8), name:'Стол '+(i+8), color:'#9e9e9e', intervalMin:18 })),
+  // VIP 1–5 — жёлтые
+  ...Array.from({length:5}, (_,i) => ({ id:'vip'+(i+1), name:'VIP '+(i+1), color:'#ffb020', intervalMin:18 })),
+  // Столы 15–27 — синие
+  ...Array.from({length:13}, (_,i) => ({ id:'t'+(i+15), name:'Стол '+(i+15), color:'#2f6bff', intervalMin:18 })),
+];
+
+const WARN_BEFORE_SEC = 60; // за сколько секунд подсветить жёлтым (для активного)
+
+/* ============================================================
+   СОСТОЯНИЕ
+   ============================================================ */
+let tables = [];   // [{id, name, color, intervalMin, startedAt}]
+let guests = [];   // [{id, name, color, intervalMin, startedAt}]
+
+function loadState() {
+  try {
+    const t = JSON.parse(localStorage.getItem('hookah_tables') || 'null');
+    const g = JSON.parse(localStorage.getItem('hookah_guests') || 'null');
+    tables = t || DEFAULT_TABLES.map(x => ({...x, startedAt:null}));
+    guests = (g || []).map(x => ({ startedAt:null, color: x.color || '#2f6bff', ...x }));
+  } catch(e) {
+    tables = DEFAULT_TABLES.map(x => ({...x, startedAt:null}));
+    guests = [];
+  }
+}
+function saveState() {
+  try {
+    localStorage.setItem('hookah_tables', JSON.stringify(tables.map(t => ({...t, startedAt:null}))));
+    localStorage.setItem('hookah_guests', JSON.stringify(guests.map(g => ({...g, startedAt:null}))));
+  } catch(e) {}
+}
+
+/* ============================================================
+   ГОСТИ
+   ============================================================ */
+function addGuest(){
+  const nameEl = document.getElementById('guestName');
+  const minEl  = document.getElementById('guestMin');
+  const name = nameEl.value.trim();
+  const min  = parseInt(minEl.value,10);
+  if(!name || !min || min<1){ alert('Введи имя и минуты'); return; }
+  guests.push({ id:'g_'+Date.now(), name, intervalMin:min, color:'#9c27b0', startedAt:null });
+  nameEl.value=''; minEl.value=20;
+  saveState(); render();
+}
+function removeGuest(id){
+  if(!confirm('Удалить гостя?')) return;
+  guests = guests.filter(g=>g.id!==id);
+  saveState(); render();
+}
+
+/* ============================================================
+   КНОПКИ
+   ============================================================ */
+function startAllTables(){
+  const now = Date.now();
+  tables.forEach(t => { if(!t.startedAt) t.startedAt = now; });
+  render(); beep();
+}
+function resetAll(){
+  if(!confirm('Сбросить все таймеры?')) return;
+  tables.forEach(t => t.startedAt = null);
+  guests.forEach(g => g.startedAt = null);
+  render();
+}
+
+/* ============================================================
+   КЛИК ПО КАРТОЧКЕ
+   ============================================================ */
+function onCardClick(list, id){
+  const item = list.find(x => x.id === id);
+  if(!item) return;
+  item.startedAt = item.startedAt ? null : Date.now();
+  render(); beep();
+}
+
+/* ============================================================
+   ФОРМАТ ВРЕМЕНИ
+   ============================================================ */
+function fmt(sec){
+  sec = Math.abs(Math.floor(sec));
+  const m = Math.floor(sec/60);
+  const s = sec % 60;
+  return m + ':' + String(s).padStart(2,'0');
+}
+
+/* ============================================================
+   ОТРИСОВКА КАРТОЧКИ
+   ============================================================ */
+function cardHTML(item, listName){
+  const now = Date.now();
+  let cls='idle', time='—', sub='';
+
+  if(item.startedAt){
+    const interval = item.intervalMin * 60 * 1000;
+    const elapsed  = now - item.startedAt;
+    const remain   = interval - elapsed;
+
+    if(remain > WARN_BEFORE_SEC*1000){
+      cls='active'; time = fmt(remain/1000);
+    } else if(remain > 0){
+      cls='warn'; time = fmt(remain/1000); sub='СКОРО ЗАМЕНА';
+    } else {
+      cls='overdue'; time = '+' + fmt(remain/1000); sub='ПОРА МЕНЯТЬ';
+    }
+  }
+
+  const delBtn = item.isGuest
+    ? `<div class="guest-del" onclick="event.stopPropagation();removeGuest('${item.id}')">✕</div>`
+    : '';
+
+  const borderColor = cls === 'overdue' ? '#ff3b30'
+                    : cls === 'warn'    ? '#ffb020'
+                    : item.color;
+
+  const bg = cls === 'overdue' ? 'rgba(255,59,48,.18)'
+           : cls === 'warn'    ? 'rgba(255,176,32,.15)'
+           : (item.startedAt   ? hexA(item.color, .15) : '#1c1c1f');
+
+  return `<div class="card ${cls}" style="border-color:${borderColor};background:${bg}" onclick="onCardClick(${listName},'${item.id}')">
+    ${delBtn}
+    <div class="name">${escapeHtml(item.name)}</div>
+    <div class="time">${time}</div>
+    <div class="sub">${sub}</div>
+  </div>`;
+}
+
+function hexA(hex, a){
+  const h = hex.replace('#','');
+  const r = parseInt(h.substring(0,2),16);
+  const g = parseInt(h.substring(2,4),16);
+  const b = parseInt(h.substring(4,6),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function render(){
+  document.getElementById('tables').innerHTML =
+    tables.map(t => cardHTML(t, 'tables')).join('');
+
+  document.getElementById('guests').innerHTML = guests.length
+    ? guests.map(g => cardHTML({...g, isGuest:true}, 'guests')).join('')
+    : '<div style="color:#666;font-size:13px;padding:8px">Добавь постоянных гостей ↑</div>';
+}
+
+/* ============================================================
+   ЗВУК
+   ============================================================ */
+let audioCtx = null;
+function unlockAudio(){
+  try {
+    if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+  } catch(e) {}
+}
+document.addEventListener('touchstart', unlockAudio, {once:true});
+document.addEventListener('click', unlockAudio, {once:true});
+
+function tone(freq, dur, vol, delay){
+  try {
+    unlockAudio();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.frequency.value = freq;
+    const t = audioCtx.currentTime + (delay||0);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.start(t); o.stop(t + dur);
+  } catch(e) {}
+}
+function beep(){ tone(880, .15, .1, 0); }
+function alarm(){
+  tone(660, .2, .25, 0);
+  tone(880, .2, .25, .25);
+  tone(660, .2, .25, .5);
+  tone(880, .3, .25, .75);
+  if(navigator.vibrate) navigator.vibrate([300,100,300,100,300]);
+}
+function testSound(){
+  unlockAudio();
+  tone(440,.2,.3,0); tone(660,.2,.3,.25); tone(880,.35,.3,.5);
+  if(navigator.vibrate) navigator.vibrate(200);
+  setTimeout(()=>alert('Если ты не услышал звук:\n\n1. Проверь переключатель «Беззвучный режим» на боку iPhone — он должен быть ВЫКЛЮЧЕН.\n2. Подними громкость.\n3. На iPhone вибрация в браузере НЕ работает — это ограничение Apple.'), 900);
+}
+
+/* ============================================================
+   СЛЕЖЕНИЕ ЗА ПРОСРОЧКОЙ (звук 1 раз)
+   ============================================================ */
+const notified = new Set();
+setInterval(() => {
+  const now = Date.now();
+  const check = (list) => list.forEach(item => {
+    if(!item.startedAt){ notified.delete(item.id); return; }
+    const endAt = item.startedAt + item.intervalMin*60*1000;
+    if(now >= endAt && !notified.has(item.id)){
+      notified.add(item.id);
+      alarm();
+    }
+    if(now < endAt) notified.delete(item.id);
+  });
+  check(tables); check(guests);
+}, 1000);
+
+setInterval(render, 1000);
+
+/* ============================================================
+   НАСТРОЙКИ
+   ============================================================ */
+function openSettings(){
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('panel').classList.add('open');
+  renderTableSettings();
+}
+function closeSettings(){
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('panel').classList.remove('open');
+}
+function renderTableSettings(){
+  const html = tables.map((t, i) => `
+    <div class="row">
+      <input type="color" value="${t.color}" onchange="tables[${i}].color=this.value; saveState(); render();">
+      <input type="text" value="${escapeHtml(t.name)}" onchange="tables[${i}].name=this.value; saveState(); render();">
+      <input type="number" value="${t.intervalMin}" min="1" max="120" onchange="tables[${i}].intervalMin=parseInt(this.value)||18; saveState(); render();">
+      <span style="color:#888;font-size:11px">мин</span>
+    </div>
+  `).join('');
+
+  const guestsHtml = guests.length ? guests.map((g, i) => `
+    <div class="row">
+      <input type="color" value="${g.color||'#9c27b0'}" onchange="guests[${i}].color=this.value; saveState(); render();">
+      <input type="text" value="${escapeHtml(g.name)}" onchange="guests[${i}].name=this.value; saveState(); render();">
+      <input type="number" value="${g.intervalMin}" min="1" max="120" onchange="guests[${i}].intervalMin=parseInt(this.value)||20; saveState(); render();">
+      <button class="del" onclick="removeGuest('${g.id}'); renderTableSettings();">✕</button>
+    </div>
+  `).join('') : '<div style="color:#666;font-size:13px;padding:8px">Пока нет гостей</div>';
+
+  document.getElementById('tableSettings').innerHTML =
+    `<div style="font-size:11px;color:#888;margin-bottom:6px">Цвет — Название — Минуты</div>` +
+    html + `<div class="section-title" style="margin-top:14px">Гости</div>` + guestsHtml;
+}
+
+/* ============================================================
+   ЭКСПОРТ / ИМПОРТ
+   ============================================================ */
+function exportSettings(){
+  const data = {
+    tables: tables.map(t => ({id:t.id, name:t.name, color:t.color, intervalMin:t.intervalMin})),
+    guests: guests.map(g => ({id:g.id, name:g.name, color:g.color, intervalMin:g.intervalMin})),
+    v: 2
+  };
+  const text = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  document.getElementById('exportArea').value = text;
+  document.getElementById('exportArea').select();
+  try { document.execCommand('copy'); alert('Скопировано! Отправь этот текст напарнику в мессенджере.'); }
+  catch(e){ alert('Текст в поле — скопируй его вручную.'); }
+}
+function importSettings(){
+  const text = document.getElementById('exportArea').value.trim();
+  if(!text){ alert('Вставь текст в поле выше'); return; }
+  try {
+    const data = JSON.parse(decodeURIComponent(escape(atob(text))));
+    if(!data.tables) throw new Error('нет tables');
+    tables = data.tables.map(t => ({...t, startedAt:null}));
+    guests = (data.guests||[]).map(g => ({...g, startedAt:null}));
+    saveState(); render(); renderTableSettings();
+    alert('Импортировано: ' + tables.length + ' столов, ' + guests.length + ' гостей');
+  } catch(e){
+    alert('Ошибка импорта: ' + e.message);
+  }
+}
+
+/* ============================================================
+   СБРОС
+   ============================================================ */
+function factoryReset(){
+  if(!confirm('Точно сбросить ВСЁ к заводским настройкам? Гости и настройки столов будут удалены.')) return;
+  localStorage.removeItem('hookah_tables');
+  localStorage.removeItem('hookah_guests');
+  loadState(); render(); renderTableSettings();
+  alert('Сброшено.');
+}
+
+/* ============================================================
+   СТАРТ
+   ============================================================ */
+loadState();
+render();
+</script>
+</body>
+</html>
