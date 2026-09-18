@@ -120,7 +120,6 @@
   .cat-name { font-weight:600; }
   .cat-min { color:#888; font-size:14px; }
 
-  /* Архив смен */
   .archive-item {
     background:#1c1c1f; border-radius:10px; padding:10px 12px;
     margin-bottom:6px; border-left:3px solid #2f6bff;
@@ -249,12 +248,13 @@ const DEFAULT_CATEGORIES = [
 ];
 const WARN_BEFORE_SEC = 60;
 const LONG_PRESS_MS = 1500;
-const ARCHIVE_LIMIT = 200; // максимум записей храним
+const MOVE_THRESHOLD = 25;  // ← УВЕЛИЧИЛИ порог движения с 10 до 25 px
+const ARCHIVE_LIMIT = 200;
 
 let tables = [];
 let guests = [];
 let categories = [];
-let shifts = []; // архив
+let shifts = [];
 let maxChanges = DEFAULT_MAX_CHANGES;
 let shift = { active: false, startedAt: null, starts: 0, changes: 0, coal: 0 };
 
@@ -277,7 +277,10 @@ function loadState() {
 
     tables = t || DEFAULT_TABLES.map(x => ({...x, startedAt:null, changes:0}));
     guests = (g || []).map(x => ({ startedAt:null, changes:0, color: x.color || '#9c27b0', ...x }));
-    categories = c || DEFAULT_CATEGORIES.map(x => ({...x}));
+
+    // ЗАЩИТА: если categories пустой или не массив — восстанавливаем дефолт
+    categories = (Array.isArray(c) && c.length > 0) ? c : DEFAULT_CATEGORIES.map(x => ({...x}));
+
     shifts = Array.isArray(sh) ? sh : [];
     shift = s || { active:false, startedAt:null, starts:0, changes:0, coal:0 };
 
@@ -340,7 +343,12 @@ function joinRoom(code) {
       guests = data.guests.map(g => ({ ...g, changes: typeof g.changes === 'number' ? g.changes : 0 }));
     }
     if (typeof data.maxChanges === 'number') maxChanges = data.maxChanges;
-    if (Array.isArray(data.categories)) categories = data.categories;
+
+    // ЗАЩИТА: если с сервера пришли пустые categories — не перезаписываем дефолт
+    if (Array.isArray(data.categories) && data.categories.length > 0) {
+      categories = data.categories;
+    }
+
     if (data.shift && typeof data.shift === 'object') shift = data.shift;
     if (Array.isArray(data.shifts)) shifts = data.shifts;
 
@@ -453,7 +461,6 @@ function endShift() {
   const durStr = hrs + ' ч ' + mins + ' мин';
   if (!confirm(`Закончить смену?\n\nДлительность: ${durStr}\nСтартов кальянов: ${shift.starts}\nЗамен угля: ${shift.changes}\n\nИзрасходовано угля: ${shift.coal}`)) return;
 
-  // Сохраняем в архив
   shifts.unshift({
     startedAt: shift.startedAt,
     endedAt: Date.now(),
@@ -461,7 +468,6 @@ function endShift() {
     changes: shift.changes,
     coal: shift.coal
   });
-  // Ограничиваем размер архива
   if (shifts.length > ARCHIVE_LIMIT) shifts = shifts.slice(0, ARCHIVE_LIMIT);
 
   shift = { active: false, startedAt: null, starts: 0, changes: 0, coal: 0 };
@@ -561,6 +567,7 @@ document.addEventListener('touchstart', (e) => {
     startX: touch.clientX,
     startY: touch.clientY,
     fired: false,
+    moved: false,
     timer: setTimeout(() => {
       if (pressState[id]) pressState[id].fired = true;
       longReset(listName, id);
@@ -577,9 +584,11 @@ document.addEventListener('touchmove', (e) => {
   const touch = e.touches[0];
   const dx = Math.abs(touch.clientX - st.startX);
   const dy = Math.abs(touch.clientY - st.startY);
-  if (dx > 10 || dy > 10) {
+  if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
+    // Помечаем как "сдвинутое", но НЕ удаляем state,
+    // чтобы не терять обработку touchend
+    st.moved = true;
     clearTimeout(st.timer);
-    delete pressState[id];
   }
 }, {passive:true});
 
@@ -591,7 +600,13 @@ document.addEventListener('touchend', (e) => {
   const st = pressState[id];
   if (!st) return;
   clearTimeout(st.timer);
-  if (!st.fired) onCardClick(listName, id);
+
+  // Если это был явный свайп (сдвинулся сильно) — ничего не делаем
+  // Если сработал long press (fired) — уже обработали
+  // Иначе — обычный тап
+  if (!st.fired && !st.moved) {
+    onCardClick(listName, id);
+  }
   delete pressState[id];
   lastTouchEndTime = Date.now();
 }, {passive:true});
@@ -654,6 +669,12 @@ function longReset(listName, id){
 let modalTableId = null;
 
 function openCategoryModal(tableId) {
+  // ЗАЩИТА: если categories пустые — восстанавливаем дефолт
+  if (!Array.isArray(categories) || categories.length === 0) {
+    categories = DEFAULT_CATEGORIES.map(x => ({...x}));
+    saveState();
+  }
+
   modalTableId = tableId;
   const table = tables.find(t => t.id === tableId);
   if (!table) return;
@@ -959,7 +980,7 @@ function importSettings(){
     if(!data.tables) throw new Error('нет tables');
     tables = data.tables.map(t => ({...t, startedAt:null, changes:0}));
     guests = (data.guests||[]).map(g => ({...g, startedAt:null, changes:0}));
-    if (Array.isArray(data.categories)) categories = data.categories;
+    if (Array.isArray(data.categories) && data.categories.length > 0) categories = data.categories;
     if(data.maxChanges) { maxChanges = data.maxChanges; document.getElementById('maxChangesInput').value = maxChanges; }
     saveState(); render(); renderTableSettings(); renderCategorySettings();
     alert('Импортировано: ' + tables.length + ' столов, ' + guests.length + ' гостей');
