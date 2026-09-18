@@ -10,7 +10,7 @@
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { margin:0; padding:12px; font-family:-apple-system, BlinkMacSystemFont, sans-serif; background:#0e0e10; color:#fff; padding-bottom:90px; -webkit-touch-callout:none; }
-  h1 { font-size:20px; margin:0 0 4px; display:flex; justify-content:space-between; align-items:center; }
+  h1 { font-size:20px; margin:0 0 8px; display:flex; justify-content:space-between; align-items:center; }
   h1 .gear { font-size:24px; cursor:pointer; padding:4px 8px; }
   h1 .sync-dot { font-size:11px; vertical-align:middle; margin-left:4px; }
   .sync-dot.off { color:#444; }
@@ -80,6 +80,61 @@
 
   .banner { background:#2b2210; color:#ffb020; border-radius:10px; padding:10px 12px; font-size:12px; margin-bottom:12px; }
   .banner b { color:#fff; }
+
+  .shift-bar { margin-bottom:8px; }
+  .shift-active {
+    display:flex; gap:8px; align-items:center;
+    background:#2b2210; border-radius:10px; padding:10px 12px;
+    font-size:13px; color:#ffb020;
+  }
+  .shift-active b { color:#fff; font-size:15px; }
+  .shift-active .end-btn {
+    background:#5a1a1a; border:none; color:#fff; padding:8px 12px; border-radius:8px;
+    font-size:12px; font-weight:600; cursor:pointer;
+  }
+  .shift-start-btn {
+    width:100%; padding:10px; border-radius:10px; border:none;
+    background:#2f6bff; color:#fff; font-size:13px; font-weight:600; cursor:pointer;
+  }
+
+  .modal-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:200;
+    display:none; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-overlay.open { display:flex; }
+  .modal {
+    background:#1c1c1f; border-radius:16px; padding:20px;
+    width:100%; max-width:400px; border:1px solid #2a2a2e;
+  }
+  .modal h3 { margin:0 0 4px; font-size:18px; text-align:center; }
+  .modal .subtitle { margin:0 0 16px; font-size:13px; color:#888; text-align:center; }
+  .cat-buttons { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+  .cat-btn {
+    background:#0e0e10; border:2px solid #2a2a2e; border-radius:12px;
+    padding:14px 16px; color:#fff; font-size:16px; cursor:pointer;
+    text-align:left; display:flex; justify-content:space-between; align-items:center;
+    transition:border-color .15s, background .15s;
+    -webkit-user-select: none; user-select: none;
+  }
+  .cat-btn:active { background:#17203a; border-color:#2f6bff; }
+  .cat-name { font-weight:600; }
+  .cat-min { color:#888; font-size:14px; }
+
+  /* Архив смен */
+  .archive-item {
+    background:#1c1c1f; border-radius:10px; padding:10px 12px;
+    margin-bottom:6px; border-left:3px solid #2f6bff;
+  }
+  .archive-date { font-size:12px; color:#9a9aa0; margin-bottom:4px; }
+  .archive-stats { display:flex; gap:12px; font-size:13px; flex-wrap:wrap; }
+  .archive-stats span { color:#e8e8ec; }
+  .archive-stats b { color:#ffb020; }
+  .archive-empty { color:#666; font-size:13px; padding:8px; text-align:center; }
+  .archive-summary {
+    background:#17203a; border-radius:10px; padding:12px;
+    margin-bottom:10px; font-size:13px;
+  }
+  .archive-summary b { font-size:18px; color:#4caf50; }
 </style>
 </head>
 <body>
@@ -89,8 +144,10 @@
   <span class="gear" onclick="openSettings()">⚙️</span>
 </h1>
 
+<div class="shift-bar" id="shiftBar"></div>
+
 <div class="banner" id="banner">
-  <b>Подсказка:</b> тап по работающему столу → замена угля +кружок. Удержание 1.5 сек → сброс.
+  <b>Подсказка:</b> тап по столу → выбор крепости → старт. Тап по работающему → замена. Удержание 1.5 сек → сброс.
 </div>
 
 <h2>Столы</h2>
@@ -109,14 +166,29 @@
   <button class="gray" onclick="resetAll()">⟲ Сброс</button>
 </div>
 
+<div class="modal-overlay" id="catModal">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3 id="catModalTitle">Выбери крепость</h3>
+    <p class="subtitle" id="catModalSub">Стол</p>
+    <div class="cat-buttons" id="catButtons"></div>
+    <button class="big-btn gray" style="width:100%;padding:12px;border-radius:10px;border:none;font-size:14px;font-weight:600;color:#fff;background:#2a2a2e;cursor:pointer" onclick="closeCategoryModal()">Отмена</button>
+  </div>
+</div>
+
 <div class="settings-overlay" id="overlay" onclick="closeSettings()"></div>
 <div class="settings-panel" id="panel">
   <h3>⚙️ Настройки <button class="close" onclick="closeSettings()">✕</button></h3>
+
+  <div class="section-title">📊 Архив смен</div>
+  <div id="archivePanel"></div>
 
   <div class="section-title">📡 Синхронизация</div>
   <div id="syncPanel"></div>
 
   <button class="big-btn" onclick="testSound()">🔊 Проверить звук</button>
+
+  <div class="section-title">Категории запуска</div>
+  <div id="categorySettings"></div>
 
   <div class="section-title">Максимум замен</div>
   <div class="maxrow">
@@ -137,13 +209,12 @@
   <button class="big-btn red" onclick="factoryReset()">🗑 Сбросить всё к заводским</button>
 </div>
 
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
 <script>
 /* ============================================================
-   FIREBASE ИНИЦИАЛИЗАЦИЯ
+   FIREBASE
    ============================================================ */
 const firebaseConfig = {
   apiKey: "AIzaSyCQRfBH1WB5Hwm4CrlKlljjF3kK0nNKoFA",
@@ -159,12 +230,10 @@ let db = null;
 try {
   firebase.initializeApp(firebaseConfig);
   db = firebase.database();
-} catch(e) {
-  console.warn('Firebase init failed:', e);
-}
+} catch(e) { console.warn('Firebase init failed:', e); }
 
 /* ============================================================
-   СОСТОЯНИЕ
+   КОНСТАНТЫ / ДЕФОЛТЫ
    ============================================================ */
 const DEFAULT_MAX_CHANGES = 4;
 const DEFAULT_TABLES = [
@@ -173,12 +242,21 @@ const DEFAULT_TABLES = [
   ...Array.from({length:5},  (_,i) => ({ id:'vip'+(i+1),name:'VIP '+(i+1),   color:'#ffb020', intervalMin:18 })),
   ...Array.from({length:13}, (_,i) => ({ id:'t'+(i+15), name:'Стол '+(i+15), color:'#2f6bff', intervalMin:18 })),
 ];
+const DEFAULT_CATEGORIES = [
+  { id: 'vacuum',  name: 'Пылесосы',   min: 17 },
+  { id: 'classic', name: 'Классика',   min: 21 },
+  { id: 'fire',    name: 'Пожарники',  min: 27 },
+];
 const WARN_BEFORE_SEC = 60;
 const LONG_PRESS_MS = 1500;
+const ARCHIVE_LIMIT = 200; // максимум записей храним
 
 let tables = [];
 let guests = [];
+let categories = [];
+let shifts = []; // архив
 let maxChanges = DEFAULT_MAX_CHANGES;
+let shift = { active: false, startedAt: null, starts: 0, changes: 0, coal: 0 };
 
 let roomCode = null;
 let roomRef = null;
@@ -191,16 +269,26 @@ function loadState() {
   try {
     const t = JSON.parse(localStorage.getItem('hookah_tables') || 'null');
     const g = JSON.parse(localStorage.getItem('hookah_guests') || 'null');
+    const c = JSON.parse(localStorage.getItem('hookah_categories') || 'null');
+    const s = JSON.parse(localStorage.getItem('hookah_shift') || 'null');
+    const sh = JSON.parse(localStorage.getItem('hookah_shifts') || 'null');
     const mc = parseInt(localStorage.getItem('hookah_maxChanges') || DEFAULT_MAX_CHANGES, 10);
     maxChanges = (mc >= 1 && mc <= 10) ? mc : DEFAULT_MAX_CHANGES;
 
     tables = t || DEFAULT_TABLES.map(x => ({...x, startedAt:null, changes:0}));
     guests = (g || []).map(x => ({ startedAt:null, changes:0, color: x.color || '#9c27b0', ...x }));
+    categories = c || DEFAULT_CATEGORIES.map(x => ({...x}));
+    shifts = Array.isArray(sh) ? sh : [];
+    shift = s || { active:false, startedAt:null, starts:0, changes:0, coal:0 };
+
     tables.forEach(x => { if(typeof x.changes !== 'number') x.changes = 0; });
     guests.forEach(x => { if(typeof x.changes !== 'number') x.changes = 0; });
   } catch(e) {
     tables = DEFAULT_TABLES.map(x => ({...x, startedAt:null, changes:0}));
     guests = [];
+    categories = DEFAULT_CATEGORIES.map(x => ({...x}));
+    shifts = [];
+    shift = { active:false, startedAt:null, starts:0, changes:0, coal:0 };
     maxChanges = DEFAULT_MAX_CHANGES;
   }
 }
@@ -210,6 +298,9 @@ function saveState() {
     localStorage.setItem('hookah_tables', JSON.stringify(tables.map(t => ({...t, startedAt:null}))));
     localStorage.setItem('hookah_guests', JSON.stringify(guests.map(g => ({...g, startedAt:null}))));
     localStorage.setItem('hookah_maxChanges', maxChanges);
+    localStorage.setItem('hookah_categories', JSON.stringify(categories));
+    localStorage.setItem('hookah_shift', JSON.stringify(shift));
+    localStorage.setItem('hookah_shifts', JSON.stringify(shifts));
   } catch(e) {}
   writeToCloud();
 }
@@ -221,20 +312,16 @@ function writeToCloud() {
   if (!roomRef || suppressWrite) return;
   try {
     roomRef.child('state').set({
-      tables,
-      guests,
-      maxChanges,
+      tables, guests, maxChanges, categories, shift, shifts,
       lastUpdate: Date.now()
     });
   } catch(e) { console.warn('write failed', e); }
 }
 
 function joinRoom(code) {
-  if (!db) { alert('Firebase не загружен. Проверь интернет.'); return; }
+  if (!db) { alert('Firebase не загружен.'); return; }
   code = String(code || '').toUpperCase().trim();
   if (!code) return;
-
-  // Отписываемся от старой комнаты
   if (roomRef) { try { roomRef.off(); } catch(e){} }
 
   roomCode = code;
@@ -243,12 +330,9 @@ function joinRoom(code) {
 
   roomRef.child('state').on('value', snap => {
     const data = snap.val();
-    if (!data) {
-      // Комната пустая — отправляем свои данные
-      writeToCloud();
-      return;
-    }
+    if (!data) { writeToCloud(); return; }
     suppressWrite = true;
+
     if (Array.isArray(data.tables)) {
       tables = data.tables.map(t => ({ ...t, changes: typeof t.changes === 'number' ? t.changes : 0 }));
     }
@@ -256,20 +340,23 @@ function joinRoom(code) {
       guests = data.guests.map(g => ({ ...g, changes: typeof g.changes === 'number' ? g.changes : 0 }));
     }
     if (typeof data.maxChanges === 'number') maxChanges = data.maxChanges;
+    if (Array.isArray(data.categories)) categories = data.categories;
+    if (data.shift && typeof data.shift === 'object') shift = data.shift;
+    if (Array.isArray(data.shifts)) shifts = data.shifts;
 
-    // Сохраняем в localStorage без startedAt (как обычно)
     try {
       localStorage.setItem('hookah_tables', JSON.stringify(tables.map(t => ({...t, startedAt:null}))));
       localStorage.setItem('hookah_guests', JSON.stringify(guests.map(g => ({...g, startedAt:null}))));
       localStorage.setItem('hookah_maxChanges', maxChanges);
+      localStorage.setItem('hookah_categories', JSON.stringify(categories));
+      localStorage.setItem('hookah_shift', JSON.stringify(shift));
+      localStorage.setItem('hookah_shifts', JSON.stringify(shifts));
     } catch(e) {}
 
-    render();
-    renderTableSettings();
-    renderSyncPanel();
+    render(); renderTableSettings(); renderSyncPanel(); renderShiftBar();
+    renderCategorySettings(); renderArchive();
     const el = document.getElementById('maxChangesInput');
     if (el) el.value = maxChanges;
-
     suppressWrite = false;
   });
 
@@ -281,62 +368,47 @@ function joinRoom(code) {
 function leaveRoom() {
   if (!confirm('Отключиться от комнаты? Данные останутся локально.')) return;
   if (roomRef) { try { roomRef.off(); } catch(e){} }
-  roomRef = null;
-  roomCode = null;
+  roomRef = null; roomCode = null;
   localStorage.removeItem('hookah_roomCode');
-  renderSyncPanel();
-  updateSyncDot();
+  renderSyncPanel(); updateSyncDot();
 }
-
 function createRoom() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
   joinRoom(code);
 }
-
 function joinRoomFromInput() {
   const el = document.getElementById('roomCodeInput');
   if (!el) return;
   const code = el.value.trim().toUpperCase();
-  if (!code || code.length < 4) { alert('Введи код комнаты (4–8 символов)'); return; }
+  if (!code || code.length < 4) { alert('Введи код (4–8 символов)'); return; }
   joinRoom(code);
 }
-
 function copyRoomCode() {
   if (!roomCode) return;
   try {
     const ta = document.createElement('textarea');
     ta.value = roomCode;
-    document.body.appendChild(ta);
-    ta.select();
+    document.body.appendChild(ta); ta.select();
     document.execCommand('copy');
     document.body.removeChild(ta);
     alert('Код скопирован: ' + roomCode);
   } catch(e) { alert('Код: ' + roomCode); }
 }
-
 function updateSyncDot() {
   const el = document.getElementById('syncDot');
   if (!el) return;
-  if (roomCode && roomRef) {
-    el.className = 'sync-dot on';
-    el.textContent = '●';
-  } else {
-    el.className = 'sync-dot off';
-    el.textContent = '●';
-  }
+  el.className = (roomCode && roomRef) ? 'sync-dot on' : 'sync-dot off';
+  el.textContent = '●';
 }
-
 function renderSyncPanel() {
   const el = document.getElementById('syncPanel');
   if (!el) return;
-
   if (!db) {
-    el.innerHTML = '<div style="color:#888;font-size:12px;padding:8px">Firebase не загрузился. Проверь интернет и перезагрузи приложение.</div>';
+    el.innerHTML = '<div style="color:#888;font-size:12px;padding:8px">Firebase не загрузился.</div>';
     return;
   }
-
   if (roomCode && roomRef) {
     el.innerHTML = `
       <div class="maxrow">
@@ -346,8 +418,8 @@ function renderSyncPanel() {
         </div>
         <button onclick="copyRoomCode()" style="background:#2f6bff;border:none;color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">Копировать</button>
       </div>
-      <div style="font-size:11px;color:#888;margin:6px 0 4px">Введи этот же код на другом устройстве, чтобы они синхронизировались.</div>
-      <button class="big-btn gray" onclick="leaveRoom()">Отключиться от комнаты</button>
+      <div style="font-size:11px;color:#888;margin:6px 0 4px">Введи этот же код на другом устройстве.</div>
+      <button class="big-btn gray" onclick="leaveRoom()">Отключиться</button>
     `;
   } else {
     el.innerHTML = `
@@ -356,9 +428,114 @@ function renderSyncPanel() {
         <button class="big-btn" onclick="joinRoomFromInput()">Подключиться к комнате</button>
         <button class="big-btn gray" onclick="createRoom()">Создать новую комнату</button>
       </div>
-      <div style="font-size:11px;color:#888;margin-top:8px">Создай комнату на планшете и введи код на телефоне — они будут синхронизированы.</div>
+      <div style="font-size:11px;color:#888;margin-top:8px">Создай комнату на планшете и введи код на телефоне.</div>
     `;
   }
+}
+
+/* ============================================================
+   СМЕНА + АРХИВ
+   ============================================================ */
+function startShift() {
+  if (shift.active) { alert('Смена уже идёт'); return; }
+  if (!confirm('Начать новую смену? Все таймеры и замены сбросятся.')) return;
+  tables.forEach(t => { t.startedAt = null; t.changes = 0; t.categoryId = null; });
+  guests.forEach(g => { g.startedAt = null; g.changes = 0; });
+  shift = { active: true, startedAt: Date.now(), starts: 0, changes: 0, coal: 0 };
+  saveState(); render(); renderShiftBar();
+}
+
+function endShift() {
+  if (!shift.active) return;
+  const dur = Date.now() - shift.startedAt;
+  const hrs = Math.floor(dur / 3600000);
+  const mins = Math.floor((dur % 3600000) / 60000);
+  const durStr = hrs + ' ч ' + mins + ' мин';
+  if (!confirm(`Закончить смену?\n\nДлительность: ${durStr}\nСтартов кальянов: ${shift.starts}\nЗамен угля: ${shift.changes}\n\nИзрасходовано угля: ${shift.coal}`)) return;
+
+  // Сохраняем в архив
+  shifts.unshift({
+    startedAt: shift.startedAt,
+    endedAt: Date.now(),
+    starts: shift.starts,
+    changes: shift.changes,
+    coal: shift.coal
+  });
+  // Ограничиваем размер архива
+  if (shifts.length > ARCHIVE_LIMIT) shifts = shifts.slice(0, ARCHIVE_LIMIT);
+
+  shift = { active: false, startedAt: null, starts: 0, changes: 0, coal: 0 };
+  saveState(); render(); renderShiftBar(); renderArchive();
+}
+
+function renderShiftBar() {
+  const el = document.getElementById('shiftBar');
+  if (!el) return;
+  if (shift.active) {
+    el.innerHTML = `
+      <div class="shift-active">
+        <span style="flex:1">🔥 Смена · <b>${shift.coal}</b> угля · ${shift.starts} старт · ${shift.changes} замен</span>
+        <button class="end-btn" onclick="endShift()">Закончить</button>
+      </div>
+    `;
+  } else {
+    el.innerHTML = `<button class="shift-start-btn" onclick="startShift()">▶ Начать смену</button>`;
+  }
+}
+
+function formatDate(ts) {
+  const d = new Date(ts);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2,'0');
+  const min = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
+}
+
+function formatDuration(ms) {
+  const hrs = Math.floor(ms / 3600000);
+  const mins = Math.floor((ms % 3600000) / 60000);
+  return hrs + ' ч ' + mins + ' мин';
+}
+
+function renderArchive() {
+  const el = document.getElementById('archivePanel');
+  if (!el) return;
+
+  if (shifts.length === 0) {
+    el.innerHTML = '<div class="archive-empty">Пока нет закрытых смен</div>';
+    return;
+  }
+
+  const totalCoal = shifts.reduce((s, x) => s + (x.coal || 0), 0);
+  const totalShifts = shifts.length;
+
+  const items = shifts.map(s => `
+    <div class="archive-item">
+      <div class="archive-date">📅 ${formatDate(s.endedAt)} · ${formatDuration(s.endedAt - s.startedAt)}</div>
+      <div class="archive-stats">
+        <span>🔸 <b>${s.coal}</b> угля</span>
+        <span>🚀 ${s.starts} старт</span>
+        <span>🔄 ${s.changes} замен</span>
+      </div>
+    </div>
+  `).join('');
+
+  el.innerHTML = `
+    <div class="archive-summary">
+      Всего смен: <b>${totalShifts}</b><br>
+      Всего угля: <b>${totalCoal}</b>
+    </div>
+    ${items}
+    <button class="big-btn red" style="margin-top:10px" onclick="clearArchive()">🗑 Очистить архив</button>
+  `;
+}
+
+function clearArchive() {
+  if (!confirm('Точно удалить всю историю смен? Это действие нельзя отменить.')) return;
+  shifts = [];
+  saveState(); renderArchive();
 }
 
 /* ============================================================
@@ -371,6 +548,7 @@ document.addEventListener('contextmenu', (e) => {
 });
 
 let pressState = {};
+let lastTouchEndTime = 0;
 
 document.addEventListener('touchstart', (e) => {
   const card = e.target.closest('.card');
@@ -415,6 +593,7 @@ document.addEventListener('touchend', (e) => {
   clearTimeout(st.timer);
   if (!st.fired) onCardClick(listName, id);
   delete pressState[id];
+  lastTouchEndTime = Date.now();
 }, {passive:true});
 
 document.addEventListener('touchcancel', (e) => {
@@ -426,14 +605,15 @@ document.addEventListener('touchcancel', (e) => {
 }, {passive:true});
 
 document.addEventListener('click', (e) => {
-  if (e.pointerType === 'touch') return;
+  if (e.target.closest('.cat-btn')) return;
+  if (Date.now() - lastTouchEndTime < 1000) return;
   const card = e.target.closest('.card');
   if (!card) return;
   onCardClick(card.dataset.list, card.dataset.id);
 });
 
 /* ============================================================
-   ЛОГИКА КАРТОЧЕК
+   ЛОГИКА КЛИКОВ
    ============================================================ */
 function onCardClick(listName, id){
   const list = listName === 'tables' ? tables : guests;
@@ -442,12 +622,19 @@ function onCardClick(listName, id){
 
   const now = Date.now();
   if (!item.startedAt) {
-    item.startedAt = now;
+    if (listName === 'tables') {
+      openCategoryModal(id);
+    } else {
+      item.startedAt = now;
+      if (shift.active) { shift.starts++; shift.coal += 4; }
+      saveState(); render(); renderShiftBar(); beep();
+    }
   } else {
     item.changes = Math.min(item.changes + 1, 99);
     item.startedAt = now;
+    if (shift.active) { shift.changes++; shift.coal += 1; }
+    saveState(); render(); renderShiftBar(); beep();
   }
-  saveState(); render(); beep();
 }
 
 function longReset(listName, id){
@@ -457,8 +644,51 @@ function longReset(listName, id){
   if (!confirm('Сбросить "' + item.name + '": таймер и все замены?')) return;
   item.startedAt = null;
   item.changes = 0;
+  item.categoryId = null;
   saveState(); render(); beep();
 }
+
+/* ============================================================
+   МОДАЛКА КАТЕГОРИЙ
+   ============================================================ */
+let modalTableId = null;
+
+function openCategoryModal(tableId) {
+  modalTableId = tableId;
+  const table = tables.find(t => t.id === tableId);
+  if (!table) return;
+
+  document.getElementById('catModalSub').textContent = table.name;
+  document.getElementById('catButtons').innerHTML = categories.map(c => `
+    <button class="cat-btn" onclick="applyCategory('${c.id}')">
+      <span class="cat-name">${escapeHtml(c.name)}</span>
+      <span class="cat-min">${c.min} мин</span>
+    </button>
+  `).join('');
+  document.getElementById('catModal').classList.add('open');
+}
+
+function closeCategoryModal() {
+  document.getElementById('catModal').classList.remove('open');
+  modalTableId = null;
+}
+
+function applyCategory(catId) {
+  if (!modalTableId) return;
+  const table = tables.find(t => t.id === modalTableId);
+  const cat = categories.find(c => c.id === catId);
+  if (!table || !cat) { closeCategoryModal(); return; }
+  table.intervalMin = cat.min;
+  table.categoryId = cat.id;
+  table.startedAt = Date.now();
+  if (shift.active) { shift.starts++; shift.coal += 4; }
+  closeCategoryModal();
+  saveState(); render(); renderShiftBar(); beep();
+}
+
+document.getElementById('catModal').addEventListener('click', (e) => {
+  if (e.target.id === 'catModal') closeCategoryModal();
+});
 
 /* ============================================================
    ГОСТИ / СТОЛЫ
@@ -478,7 +708,6 @@ function removeGuest(id){
   guests = guests.filter(g=>g.id!==id);
   saveState(); render(); renderTableSettings();
 }
-
 function addTable(){
   const colors = ['#4caf50','#9e9e9e','#ffb020','#2f6bff','#e91e63','#9c27b0','#00bcd4','#ff5722'];
   const color = colors[tables.length % colors.length];
@@ -499,19 +728,19 @@ function moveTable(id, dir){
   [tables[i], tables[j]] = [tables[j], tables[i]];
   saveState(); render(); renderTableSettings();
 }
-
 function startAllTables(){
   const now = Date.now();
-  tables.forEach(t => { if(!t.startedAt) t.startedAt = now; });
-  saveState(); render(); beep();
+  let count = 0;
+  tables.forEach(t => { if(!t.startedAt) { t.startedAt = now; count++; } });
+  if (shift.active && count > 0) { shift.starts += count; shift.coal += count * 4; }
+  saveState(); render(); renderShiftBar(); beep();
 }
 function resetAll(){
   if(!confirm('Сбросить все таймеры и замены?')) return;
-  tables.forEach(t => { t.startedAt = null; t.changes = 0; });
+  tables.forEach(t => { t.startedAt = null; t.changes = 0; t.categoryId = null; });
   guests.forEach(g => { g.startedAt = null; g.changes = 0; });
   saveState(); render();
 }
-
 function setMaxChanges(v){
   v = parseInt(v, 10);
   if (isNaN(v) || v < 1) v = 1;
@@ -543,6 +772,11 @@ function cardHTML(item, listName){
     else { cls='overdue'; time = '+' + fmt(remain/1000); sub='МЕНЯТЬ'; }
   }
 
+  if (item.categoryId && cls !== 'overdue' && !sub) {
+    const cat = categories.find(c => c.id === item.categoryId);
+    if (cat) sub = cat.name;
+  }
+
   const delBtn = item.isGuest
     ? `<div class="guest-del" onclick="event.stopPropagation();removeGuest('${item.id}')">✕</div>`
     : '';
@@ -570,7 +804,7 @@ function cardHTML(item, listName){
     <div class="card-body">
       <div class="name">${escapeHtml(item.name)}</div>
       <div class="time">${time}</div>
-      <div class="sub">${sub}</div>
+      <div class="sub">${escapeHtml(sub)}</div>
     </div>
   </div>`;
 }
@@ -630,7 +864,7 @@ function testSound(){
   unlockAudio();
   tone(440,.2,.3,0); tone(660,.2,.3,.25); tone(880,.35,.3,.5);
   if(navigator.vibrate) navigator.vibrate(200);
-  setTimeout(()=>alert('Если ты не услышал звук:\n\n1. Проверь переключатель «Беззвучный режим» на боку iPhone — он должен быть ВЫКЛЮЧЕН.\n2. Подними громкость.\n3. На iPhone вибрация в браузере НЕ работает — это ограничение Apple.'), 900);
+  setTimeout(()=>alert('Если ты не услышал звук:\n\n1. Проверь переключатель «Беззвучный режим» на боку iPhone — он должен быть ВЫКЛЮЧЕН.\n2. Подними громкость.\n3. На iPhone вибрация в браузере НЕ работает.'), 900);
 }
 
 const notified = new Set();
@@ -657,12 +891,23 @@ function openSettings(){
   document.getElementById('overlay').classList.add('open');
   document.getElementById('panel').classList.add('open');
   document.getElementById('maxChangesInput').value = maxChanges;
-  renderTableSettings();
-  renderSyncPanel();
+  renderTableSettings(); renderSyncPanel(); renderCategorySettings(); renderArchive();
 }
 function closeSettings(){
   document.getElementById('overlay').classList.remove('open');
   document.getElementById('panel').classList.remove('open');
+}
+
+function renderCategorySettings(){
+  const el = document.getElementById('categorySettings');
+  if (!el) return;
+  el.innerHTML = categories.map((c, i) => `
+    <div class="row">
+      <input type="text" value="${escapeHtml(c.name)}" onchange="categories[${i}].name=this.value; saveState(); render();">
+      <input type="number" value="${c.min}" min="1" max="180" onchange="categories[${i}].min=parseInt(this.value)||17; saveState(); render();">
+      <span style="color:#888;font-size:11px">мин</span>
+    </div>
+  `).join('');
 }
 
 function renderTableSettings(){
@@ -672,7 +917,7 @@ function renderTableSettings(){
       <button class="arrow" onclick="moveTable('${t.id}',1)">↓</button>
       <input type="color" value="${t.color}" onchange="tables[${i}].color=this.value; saveState(); render();">
       <input type="text" value="${escapeHtml(t.name)}" onchange="tables[${i}].name=this.value; saveState(); render();">
-      <input type="number" value="${t.intervalMin}" min="1" max="120" onchange="tables[${i}].intervalMin=parseInt(this.value)||18; saveState(); render();">
+      <input type="number" value="${t.intervalMin}" min="1" max="180" onchange="tables[${i}].intervalMin=parseInt(this.value)||18; saveState(); render();">
       <button class="del" onclick="removeTable('${t.id}')">✕</button>
     </div>
   `).join('');
@@ -681,7 +926,7 @@ function renderTableSettings(){
     <div class="row">
       <input type="color" value="${g.color||'#9c27b0'}" onchange="guests[${i}].color=this.value; saveState(); render();">
       <input type="text" value="${escapeHtml(g.name)}" onchange="guests[${i}].name=this.value; saveState(); render();">
-      <input type="number" value="${g.intervalMin}" min="1" max="120" onchange="guests[${i}].intervalMin=parseInt(this.value)||20; saveState(); render();">
+      <input type="number" value="${g.intervalMin}" min="1" max="180" onchange="guests[${i}].intervalMin=parseInt(this.value)||20; saveState(); render();">
       <button class="del" onclick="removeGuest('${g.id}')">✕</button>
     </div>
   `).join('') : '<div style="color:#666;font-size:13px;padding:8px">Пока нет гостей</div>';
@@ -692,19 +937,19 @@ function renderTableSettings(){
 }
 
 /* ============================================================
-   ЭКСПОРТ / ИМПОРТ
+   ЭКСПОРТ / ИМПОРТ / СБРОС
    ============================================================ */
 function exportSettings(){
   const data = {
     tables: tables.map(t => ({id:t.id, name:t.name, color:t.color, intervalMin:t.intervalMin})),
     guests: guests.map(g => ({id:g.id, name:g.name, color:g.color, intervalMin:g.intervalMin})),
-    maxChanges, v: 4
+    categories, maxChanges, v: 5
   };
   const text = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
   document.getElementById('exportArea').value = text;
   document.getElementById('exportArea').select();
   try { document.execCommand('copy'); alert('Скопировано!'); }
-  catch(e){ alert('Текст в поле — скопируй его вручную.'); }
+  catch(e){ alert('Текст в поле — скопируй вручную.'); }
 }
 function importSettings(){
   const text = document.getElementById('exportArea').value.trim();
@@ -714,20 +959,21 @@ function importSettings(){
     if(!data.tables) throw new Error('нет tables');
     tables = data.tables.map(t => ({...t, startedAt:null, changes:0}));
     guests = (data.guests||[]).map(g => ({...g, startedAt:null, changes:0}));
+    if (Array.isArray(data.categories)) categories = data.categories;
     if(data.maxChanges) { maxChanges = data.maxChanges; document.getElementById('maxChangesInput').value = maxChanges; }
-    saveState(); render(); renderTableSettings();
+    saveState(); render(); renderTableSettings(); renderCategorySettings();
     alert('Импортировано: ' + tables.length + ' столов, ' + guests.length + ' гостей');
-  } catch(e){
-    alert('Ошибка импорта: ' + e.message);
-  }
+  } catch(e){ alert('Ошибка импорта: ' + e.message); }
 }
-
 function factoryReset(){
-  if(!confirm('Точно сбросить ВСЁ к заводским настройкам?')) return;
+  if(!confirm('Точно сбросить ВСЁ к заводским настройкам? Архив смен будет удалён.')) return;
   localStorage.removeItem('hookah_tables');
   localStorage.removeItem('hookah_guests');
   localStorage.removeItem('hookah_maxChanges');
-  loadState(); render(); renderTableSettings();
+  localStorage.removeItem('hookah_categories');
+  localStorage.removeItem('hookah_shift');
+  localStorage.removeItem('hookah_shifts');
+  loadState(); render(); renderTableSettings(); renderCategorySettings(); renderShiftBar(); renderArchive();
   document.getElementById('maxChangesInput').value = maxChanges;
   alert('Сброшено.');
 }
@@ -737,13 +983,12 @@ function factoryReset(){
    ============================================================ */
 loadState();
 render();
+renderShiftBar();
+renderArchive();
 updateSyncDot();
 
-// Автоподключение к сохранённой комнате
 const savedRoom = localStorage.getItem('hookah_roomCode');
-if (savedRoom && db) {
-  joinRoom(savedRoom);
-}
+if (savedRoom && db) { joinRoom(savedRoom); }
 </script>
 </body>
 </html>
