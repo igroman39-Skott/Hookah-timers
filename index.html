@@ -13,10 +13,16 @@
   h1 { font-size:20px; margin:0 0 4px; display:flex; justify-content:space-between; align-items:center; }
   h1 .gear { font-size:24px; cursor:pointer; padding:4px 8px; }
   h2 { font-size:13px; margin:16px 0 8px; color:#9a9aa0; text-transform:uppercase; letter-spacing:1px; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(105px,1fr)); gap:8px; }
-  .card { background:#1c1c1f; border-radius:14px; padding:10px 6px; text-align:center; border:2px solid #2a2a2e; cursor:pointer; user-select:none; position:relative; transition:background .3s, border-color .3s; }
-  .card .name { font-size:13px; color:#e8e8ec; margin-bottom:4px; font-weight:600; }
-  .card .time { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:8px; }
+  .card { background:#1c1c1f; border-radius:14px; padding:10px 8px; text-align:center; border:2px solid #2a2a2e; cursor:pointer; user-select:none; position:relative; transition:background .3s, border-color .3s; display:flex; align-items:center; gap:8px; }
+
+  .dots { display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
+  .dot { width:11px; height:11px; border-radius:50%; background:#2a2a2e; border:1px solid #3a3a3e; transition:background .2s, border-color .2s, box-shadow .2s; }
+  .dot.on { background:var(--c, #4caf50); border-color:var(--c, #4caf50); box-shadow:0 0 6px var(--c, #4caf50); }
+
+  .card-body { flex:1; min-width:0; }
+  .card .name { font-size:13px; color:#e8e8ec; margin-bottom:3px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .card .time { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.1; }
   .card .sub  { font-size:10px; color:#aaa; margin-top:2px; height:12px; letter-spacing:.5px; }
 
   .card.idle    { opacity:.65; }
@@ -32,19 +38,17 @@
   .toolbar { position:fixed; left:0; right:0; bottom:0; background:#17171a; padding:10px 12px; display:flex; gap:8px; border-top:1px solid #2a2a2e; z-index:10; }
   .toolbar button { flex:1; padding:12px; border-radius:10px; border:none; font-size:13px; font-weight:600; color:#fff; background:#2f6bff; }
   .toolbar button.gray { background:#2a2a2e; }
-  .toolbar button.small { flex:0 0 auto; padding:12px 14px; }
 
   .add-guest { display:flex; gap:6px; margin-bottom:8px; }
   .add-guest input { flex:1; padding:10px; border-radius:10px; border:1px solid #2a2a2e; background:#1c1c1f; color:#fff; font-size:14px; }
   .add-guest input.min { max-width:70px; }
   .add-guest button { padding:10px 14px; border-radius:10px; border:none; background:#2f6bff; color:#fff; font-weight:600; font-size:16px; }
 
-  .guest-del { position:absolute; top:2px; right:4px; font-size:14px; color:#888; padding:4px; z-index:2; }
+  .guest-del { position:absolute; top:2px; right:4px; font-size:13px; color:#888; padding:3px; z-index:2; }
 
-  /* Панель настроек */
   .settings-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:100; display:none; }
   .settings-overlay.open { display:block; }
-  .settings-panel { position:fixed; top:0; right:0; bottom:0; width:min(420px,95vw); background:#15151a; z-index:101; overflow-y:auto; padding:16px; transform:translateX(100%); transition:transform .25s; border-left:1px solid #2a2a2e; }
+  .settings-panel { position:fixed; top:0; right:0; bottom:0; width:min(440px,95vw); background:#15151a; z-index:101; overflow-y:auto; padding:16px; transform:translateX(100%); transition:transform .25s; border-left:1px solid #2a2a2e; }
   .settings-panel.open { transform:translateX(0); }
   .settings-panel h3 { font-size:16px; margin:0 0 12px; display:flex; justify-content:space-between; }
   .settings-panel .close { background:none; border:none; color:#fff; font-size:22px; padding:0 4px; cursor:pointer; }
@@ -52,13 +56,16 @@
   .settings-panel .row input[type=text] { flex:1; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:6px; padding:6px 8px; font-size:13px; min-width:0; }
   .settings-panel .row input[type=number] { width:56px; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:6px; padding:6px; font-size:13px; }
   .settings-panel .row input[type=color] { width:36px; height:36px; border:none; background:none; padding:0; cursor:pointer; }
-  .settings-panel .row button { background:#2a2a2e; border:none; color:#fff; border-radius:6px; padding:6px 10px; font-size:13px; cursor:pointer; }
+  .settings-panel .row button { background:#2a2a2e; border:none; color:#fff; border-radius:6px; padding:6px 8px; font-size:13px; cursor:pointer; }
   .settings-panel .row button.del { background:#5a1a1a; }
+  .settings-panel .row button.arrow { padding:6px 8px; font-size:14px; }
   .settings-panel .section-title { font-size:12px; color:#9a9aa0; text-transform:uppercase; letter-spacing:1px; margin:16px 0 8px; }
   .settings-panel .big-btn { width:100%; padding:12px; border-radius:10px; border:none; font-size:14px; font-weight:600; color:#fff; background:#2f6bff; margin-top:8px; cursor:pointer; }
   .settings-panel .big-btn.gray { background:#2a2a2e; }
   .settings-panel .big-btn.red { background:#5a1a1a; }
-  .settings-panel textarea { width:100%; height:80px; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:8px; padding:8px; font-size:11px; font-family:monospace; }
+  .settings-panel textarea { width:100%; height:70px; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:8px; padding:8px; font-size:11px; font-family:monospace; }
+  .settings-panel .maxrow { display:flex; gap:8px; align-items:center; background:#1c1c1f; padding:10px; border-radius:10px; margin-bottom:8px; }
+  .settings-panel .maxrow input { width:60px; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:6px; padding:6px; font-size:14px; text-align:center; }
 
   .banner { background:#2b2210; color:#ffb020; border-radius:10px; padding:10px 12px; font-size:12px; margin-bottom:12px; }
   .banner b { color:#fff; }
@@ -72,7 +79,7 @@
 </h1>
 
 <div class="banner" id="banner">
-  <b>Первый запуск:</b> тапни один раз по любому столу, чтобы разрешить звук. Если звука не слышно — нажми ⚙️ → «Проверить звук» и проверь беззвучный режим iPhone.
+  <b>Подсказка:</b> тап по столу → замена угля +кружок. Долгое нажатие (~0.8 сек) → сброс кружков.
 </div>
 
 <h2>Столы</h2>
@@ -91,15 +98,21 @@
   <button class="gray" onclick="resetAll()">⟲ Сброс</button>
 </div>
 
-<!-- Панель настроек -->
 <div class="settings-overlay" id="overlay" onclick="closeSettings()"></div>
 <div class="settings-panel" id="panel">
   <h3>⚙️ Настройки <button class="close" onclick="closeSettings()">✕</button></h3>
 
   <button class="big-btn" onclick="testSound()">🔊 Проверить звук</button>
 
+  <div class="section-title">Максимум замен</div>
+  <div class="maxrow">
+    <span style="flex:1;font-size:13px">Кружков на стол</span>
+    <input type="number" id="maxChangesInput" min="1" max="10" value="4" onchange="setMaxChanges(this.value)">
+  </div>
+
   <div class="section-title">Столы</div>
   <div id="tableSettings"></div>
+  <button class="big-btn gray" onclick="addTable()">+ Добавить стол</button>
 
   <div class="section-title">Экспорт / Импорт настроек</div>
   <textarea id="exportArea" placeholder="Здесь появится текст с настройками"></textarea>
@@ -111,93 +124,155 @@
 </div>
 
 <script>
-/* ============================================================
-   ЗАВОДСКАЯ КОНФИГУРАЦИЯ СТОЛОВ
-   ============================================================ */
+const DEFAULT_MAX_CHANGES = 4;
+
 const DEFAULT_TABLES = [
-  // Столы 1–7 — зелёные
-  ...Array.from({length:7}, (_,i) => ({ id:'t'+(i+1), name:'Стол '+(i+1), color:'#4caf50', intervalMin:18 })),
-  // Столы 8–9 — серые
-  ...Array.from({length:2}, (_,i) => ({ id:'t'+(i+8), name:'Стол '+(i+8), color:'#9e9e9e', intervalMin:18 })),
-  // VIP 1–5 — жёлтые
-  ...Array.from({length:5}, (_,i) => ({ id:'vip'+(i+1), name:'VIP '+(i+1), color:'#ffb020', intervalMin:18 })),
-  // Столы 15–27 — синие
+  ...Array.from({length:7},  (_,i) => ({ id:'t'+(i+1),  name:'Стол '+(i+1),  color:'#4caf50', intervalMin:18 })),
+  ...Array.from({length:2},  (_,i) => ({ id:'t'+(i+8),  name:'Стол '+(i+8),  color:'#9e9e9e', intervalMin:18 })),
+  ...Array.from({length:5},  (_,i) => ({ id:'vip'+(i+1),name:'VIP '+(i+1),   color:'#ffb020', intervalMin:18 })),
   ...Array.from({length:13}, (_,i) => ({ id:'t'+(i+15), name:'Стол '+(i+15), color:'#2f6bff', intervalMin:18 })),
 ];
 
-const WARN_BEFORE_SEC = 60; // за сколько секунд подсветить жёлтым (для активного)
+const WARN_BEFORE_SEC = 60;
 
-/* ============================================================
-   СОСТОЯНИЕ
-   ============================================================ */
-let tables = [];   // [{id, name, color, intervalMin, startedAt}]
-let guests = [];   // [{id, name, color, intervalMin, startedAt}]
+let tables = [];
+let guests = [];
+let maxChanges = DEFAULT_MAX_CHANGES;
 
 function loadState() {
   try {
     const t = JSON.parse(localStorage.getItem('hookah_tables') || 'null');
     const g = JSON.parse(localStorage.getItem('hookah_guests') || 'null');
-    tables = t || DEFAULT_TABLES.map(x => ({...x, startedAt:null}));
-    guests = (g || []).map(x => ({ startedAt:null, color: x.color || '#2f6bff', ...x }));
+    const mc = parseInt(localStorage.getItem('hookah_maxChanges') || DEFAULT_MAX_CHANGES, 10);
+    maxChanges = (mc >= 1 && mc <= 10) ? mc : DEFAULT_MAX_CHANGES;
+
+    tables = t || DEFAULT_TABLES.map(x => ({...x, startedAt:null, changes:0}));
+    guests = (g || []).map(x => ({ startedAt:null, changes:0, color: x.color || '#9c27b0', ...x }));
+    tables.forEach(x => { if(typeof x.changes !== 'number') x.changes = 0; });
+    guests.forEach(x => { if(typeof x.changes !== 'number') x.changes = 0; });
   } catch(e) {
-    tables = DEFAULT_TABLES.map(x => ({...x, startedAt:null}));
+    tables = DEFAULT_TABLES.map(x => ({...x, startedAt:null, changes:0}));
     guests = [];
+    maxChanges = DEFAULT_MAX_CHANGES;
   }
 }
+
 function saveState() {
   try {
     localStorage.setItem('hookah_tables', JSON.stringify(tables.map(t => ({...t, startedAt:null}))));
     localStorage.setItem('hookah_guests', JSON.stringify(guests.map(g => ({...g, startedAt:null}))));
+    localStorage.setItem('hookah_maxChanges', maxChanges);
   } catch(e) {}
 }
 
-/* ============================================================
-   ГОСТИ
-   ============================================================ */
+function setMaxChanges(v) {
+  v = parseInt(v, 10);
+  if (isNaN(v) || v < 1) v = 1;
+  if (v > 10) v = 10;
+  maxChanges = v;
+  saveState(); render(); renderTableSettings();
+}
+
 function addGuest(){
   const nameEl = document.getElementById('guestName');
   const minEl  = document.getElementById('guestMin');
   const name = nameEl.value.trim();
   const min  = parseInt(minEl.value,10);
   if(!name || !min || min<1){ alert('Введи имя и минуты'); return; }
-  guests.push({ id:'g_'+Date.now(), name, intervalMin:min, color:'#9c27b0', startedAt:null });
+  guests.push({ id:'g_'+Date.now(), name, intervalMin:min, color:'#9c27b0', startedAt:null, changes:0 });
   nameEl.value=''; minEl.value=20;
   saveState(); render();
 }
 function removeGuest(id){
   if(!confirm('Удалить гостя?')) return;
   guests = guests.filter(g=>g.id!==id);
-  saveState(); render();
+  saveState(); render(); renderTableSettings();
 }
 
-/* ============================================================
-   КНОПКИ
-   ============================================================ */
+function addTable(){
+  const colors = ['#4caf50','#9e9e9e','#ffb020','#2f6bff','#e91e63','#9c27b0','#00bcd4','#ff5722'];
+  const color = colors[tables.length % colors.length];
+  const nextNum = tables.length + 1;
+  tables.push({ id:'t_'+Date.now(), name:'Стол '+nextNum, color, intervalMin:18, startedAt:null, changes:0 });
+  saveState(); render(); renderTableSettings();
+}
+function removeTable(id){
+  if(!confirm('Удалить стол?')) return;
+  tables = tables.filter(t => t.id !== id);
+  saveState(); render(); renderTableSettings();
+}
+function moveTable(id, dir){
+  const i = tables.findIndex(t => t.id === id);
+  if(i < 0) return;
+  const j = i + dir;
+  if(j < 0 || j >= tables.length) return;
+  [tables[i], tables[j]] = [tables[j], tables[i]];
+  saveState(); render(); renderTableSettings();
+}
+
 function startAllTables(){
   const now = Date.now();
   tables.forEach(t => { if(!t.startedAt) t.startedAt = now; });
   render(); beep();
 }
 function resetAll(){
-  if(!confirm('Сбросить все таймеры?')) return;
-  tables.forEach(t => t.startedAt = null);
-  guests.forEach(g => g.startedAt = null);
-  render();
+  if(!confirm('Сбросить все таймеры и замены?')) return;
+  tables.forEach(t => { t.startedAt = null; t.changes = 0; });
+  guests.forEach(g => { g.startedAt = null; g.changes = 0; });
+  saveState(); render();
 }
 
-/* ============================================================
-   КЛИК ПО КАРТОЧКЕ
-   ============================================================ */
-function onCardClick(list, id){
+let pressTimers = {};
+let longPressed = {};
+
+function onCardPressStart(listName, id){
+  longPressed[id] = false;
+  pressTimers[id] = setTimeout(() => {
+    longPressed[id] = true;
+    longReset(listName, id);
+  }, 800);
+}
+function onCardPressEnd(listName, id){
+  clearTimeout(pressTimers[id]);
+  if (longPressed[id]) { longPressed[id] = false; return; }
+  onCardClick(listName, id);
+}
+function onCardPressCancel(id){
+  clearTimeout(pressTimers[id]);
+  longPressed[id] = false;
+}
+
+function onCardClick(listName, id){
+  const list = listName === 'tables' ? tables : guests;
   const item = list.find(x => x.id === id);
   if(!item) return;
-  item.startedAt = item.startedAt ? null : Date.now();
-  render(); beep();
+
+  const now = Date.now();
+  const interval = item.intervalMin * 60 * 1000;
+  const isOverdue = item.startedAt && (now - item.startedAt >= interval);
+
+  if (isOverdue) {
+    item.changes = Math.min(item.changes + 1, 99);
+    item.startedAt = now;
+  } else if (item.startedAt) {
+    item.startedAt = null;
+  } else {
+    item.startedAt = now;
+  }
+
+  saveState(); render(); beep();
 }
 
-/* ============================================================
-   ФОРМАТ ВРЕМЕНИ
-   ============================================================ */
+function longReset(listName, id){
+  const list = listName === 'tables' ? tables : guests;
+  const item = list.find(x => x.id === id);
+  if (!item) return;
+  if (!confirm('Сбросить "' + item.name + '": таймер и все замены?')) return;
+  item.startedAt = null;
+  item.changes = 0;
+  saveState(); render(); beep();
+}
+
 function fmt(sec){
   sec = Math.abs(Math.floor(sec));
   const m = Math.floor(sec/60);
@@ -205,9 +280,6 @@ function fmt(sec){
   return m + ':' + String(s).padStart(2,'0');
 }
 
-/* ============================================================
-   ОТРИСОВКА КАРТОЧКИ
-   ============================================================ */
 function cardHTML(item, listName){
   const now = Date.now();
   let cls='idle', time='—', sub='';
@@ -220,9 +292,9 @@ function cardHTML(item, listName){
     if(remain > WARN_BEFORE_SEC*1000){
       cls='active'; time = fmt(remain/1000);
     } else if(remain > 0){
-      cls='warn'; time = fmt(remain/1000); sub='СКОРО ЗАМЕНА';
+      cls='warn'; time = fmt(remain/1000); sub='СКОРО';
     } else {
-      cls='overdue'; time = '+' + fmt(remain/1000); sub='ПОРА МЕНЯТЬ';
+      cls='overdue'; time = '+' + fmt(remain/1000); sub='МЕНЯТЬ';
     }
   }
 
@@ -238,11 +310,29 @@ function cardHTML(item, listName){
            : cls === 'warn'    ? 'rgba(255,176,32,.15)'
            : (item.startedAt   ? hexA(item.color, .15) : '#1c1c1f');
 
-  return `<div class="card ${cls}" style="border-color:${borderColor};background:${bg}" onclick="onCardClick(${listName},'${item.id}')">
+  let dotsHTML = '';
+  for (let i = 0; i < maxChanges; i++) {
+    const on = i < item.changes ? 'on' : '';
+    dotsHTML += `<div class="dot ${on}"></div>`;
+  }
+  const extra = item.changes > maxChanges ? `<div style="font-size:9px;color:#fff;text-align:center">+${item.changes - maxChanges}</div>` : '';
+
+  const safeId = String(item.id).replace(/'/g, "\\'");
+
+  return `<div class="card ${cls}" style="--c:${item.color};border-color:${borderColor};background:${bg}"
+    ontouchstart="onCardPressStart('${listName}','${safeId}')"
+    ontouchend="onCardPressEnd('${listName}','${safeId}')"
+    ontouchcancel="onCardPressCancel('${safeId}')"
+    onmousedown="onCardPressStart('${listName}','${safeId}')"
+    onmouseup="onCardPressEnd('${listName}','${safeId}')"
+    onmouseleave="onCardPressCancel('${safeId}')">
     ${delBtn}
-    <div class="name">${escapeHtml(item.name)}</div>
-    <div class="time">${time}</div>
-    <div class="sub">${sub}</div>
+    <div class="dots" style="--c:${item.color}">${dotsHTML}${extra}</div>
+    <div class="card-body">
+      <div class="name">${escapeHtml(item.name)}</div>
+      <div class="time">${time}</div>
+      <div class="sub">${sub}</div>
+    </div>
   </div>`;
 }
 
@@ -264,9 +354,6 @@ function render(){
     : '<div style="color:#666;font-size:13px;padding:8px">Добавь постоянных гостей ↑</div>';
 }
 
-/* ============================================================
-   ЗВУК
-   ============================================================ */
 let audioCtx = null;
 function unlockAudio(){
   try {
@@ -290,7 +377,7 @@ function tone(freq, dur, vol, delay){
     o.start(t); o.stop(t + dur);
   } catch(e) {}
 }
-function beep(){ tone(880, .15, .1, 0); }
+function beep(){ tone(880, .12, .08, 0); }
 function alarm(){
   tone(660, .2, .25, 0);
   tone(880, .2, .25, .25);
@@ -305,9 +392,6 @@ function testSound(){
   setTimeout(()=>alert('Если ты не услышал звук:\n\n1. Проверь переключатель «Беззвучный режим» на боку iPhone — он должен быть ВЫКЛЮЧЕН.\n2. Подними громкость.\n3. На iPhone вибрация в браузере НЕ работает — это ограничение Apple.'), 900);
 }
 
-/* ============================================================
-   СЛЕЖЕНИЕ ЗА ПРОСРОЧКОЙ (звук 1 раз)
-   ============================================================ */
 const notified = new Set();
 setInterval(() => {
   const now = Date.now();
@@ -325,25 +409,26 @@ setInterval(() => {
 
 setInterval(render, 1000);
 
-/* ============================================================
-   НАСТРОЙКИ
-   ============================================================ */
 function openSettings(){
   document.getElementById('overlay').classList.add('open');
   document.getElementById('panel').classList.add('open');
+  document.getElementById('maxChangesInput').value = maxChanges;
   renderTableSettings();
 }
 function closeSettings(){
   document.getElementById('overlay').classList.remove('open');
   document.getElementById('panel').classList.remove('open');
 }
+
 function renderTableSettings(){
   const html = tables.map((t, i) => `
     <div class="row">
+      <button class="arrow" onclick="moveTable('${t.id}',-1)">↑</button>
+      <button class="arrow" onclick="moveTable('${t.id}',1)">↓</button>
       <input type="color" value="${t.color}" onchange="tables[${i}].color=this.value; saveState(); render();">
       <input type="text" value="${escapeHtml(t.name)}" onchange="tables[${i}].name=this.value; saveState(); render();">
       <input type="number" value="${t.intervalMin}" min="1" max="120" onchange="tables[${i}].intervalMin=parseInt(this.value)||18; saveState(); render();">
-      <span style="color:#888;font-size:11px">мин</span>
+      <button class="del" onclick="removeTable('${t.id}')">✕</button>
     </div>
   `).join('');
 
@@ -352,28 +437,26 @@ function renderTableSettings(){
       <input type="color" value="${g.color||'#9c27b0'}" onchange="guests[${i}].color=this.value; saveState(); render();">
       <input type="text" value="${escapeHtml(g.name)}" onchange="guests[${i}].name=this.value; saveState(); render();">
       <input type="number" value="${g.intervalMin}" min="1" max="120" onchange="guests[${i}].intervalMin=parseInt(this.value)||20; saveState(); render();">
-      <button class="del" onclick="removeGuest('${g.id}'); renderTableSettings();">✕</button>
+      <button class="del" onclick="removeGuest('${g.id}')">✕</button>
     </div>
   `).join('') : '<div style="color:#666;font-size:13px;padding:8px">Пока нет гостей</div>';
 
   document.getElementById('tableSettings').innerHTML =
-    `<div style="font-size:11px;color:#888;margin-bottom:6px">Цвет — Название — Минуты</div>` +
+    `<div style="font-size:11px;color:#888;margin-bottom:6px">Порядок — Цвет — Название — Минуты — Удалить</div>` +
     html + `<div class="section-title" style="margin-top:14px">Гости</div>` + guestsHtml;
 }
 
-/* ============================================================
-   ЭКСПОРТ / ИМПОРТ
-   ============================================================ */
 function exportSettings(){
   const data = {
     tables: tables.map(t => ({id:t.id, name:t.name, color:t.color, intervalMin:t.intervalMin})),
     guests: guests.map(g => ({id:g.id, name:g.name, color:g.color, intervalMin:g.intervalMin})),
-    v: 2
+    maxChanges: maxChanges,
+    v: 3
   };
   const text = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
   document.getElementById('exportArea').value = text;
   document.getElementById('exportArea').select();
-  try { document.execCommand('copy'); alert('Скопировано! Отправь этот текст напарнику в мессенджере.'); }
+  try { document.execCommand('copy'); alert('Скопировано! Отправь этот текст напарнику.'); }
   catch(e){ alert('Текст в поле — скопируй его вручную.'); }
 }
 function importSettings(){
@@ -382,8 +465,9 @@ function importSettings(){
   try {
     const data = JSON.parse(decodeURIComponent(escape(atob(text))));
     if(!data.tables) throw new Error('нет tables');
-    tables = data.tables.map(t => ({...t, startedAt:null}));
-    guests = (data.guests||[]).map(g => ({...g, startedAt:null}));
+    tables = data.tables.map(t => ({...t, startedAt:null, changes:0}));
+    guests = (data.guests||[]).map(g => ({...g, startedAt:null, changes:0}));
+    if(data.maxChanges) { maxChanges = data.maxChanges; document.getElementById('maxChangesInput').value = maxChanges; }
     saveState(); render(); renderTableSettings();
     alert('Импортировано: ' + tables.length + ' столов, ' + guests.length + ' гостей');
   } catch(e){
@@ -391,20 +475,16 @@ function importSettings(){
   }
 }
 
-/* ============================================================
-   СБРОС
-   ============================================================ */
 function factoryReset(){
-  if(!confirm('Точно сбросить ВСЁ к заводским настройкам? Гости и настройки столов будут удалены.')) return;
+  if(!confirm('Точно сбросить ВСЁ к заводским настройкам?')) return;
   localStorage.removeItem('hookah_tables');
   localStorage.removeItem('hookah_guests');
+  localStorage.removeItem('hookah_maxChanges');
   loadState(); render(); renderTableSettings();
+  document.getElementById('maxChangesInput').value = maxChanges; это
   alert('Сброшено.');
 }
 
-/* ============================================================
-   СТАРТ
-   ============================================================ */
 loadState();
 render();
 </script>
