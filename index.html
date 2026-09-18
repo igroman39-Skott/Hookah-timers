@@ -12,6 +12,9 @@
   body { margin:0; padding:12px; font-family:-apple-system, BlinkMacSystemFont, sans-serif; background:#0e0e10; color:#fff; padding-bottom:90px; -webkit-touch-callout:none; }
   h1 { font-size:20px; margin:0 0 4px; display:flex; justify-content:space-between; align-items:center; }
   h1 .gear { font-size:24px; cursor:pointer; padding:4px 8px; }
+  h1 .sync-dot { font-size:11px; vertical-align:middle; margin-left:4px; }
+  .sync-dot.off { color:#444; }
+  .sync-dot.on { color:#4caf50; text-shadow:0 0 6px #4caf50; }
   h2 { font-size:13px; margin:16px 0 8px; color:#9a9aa0; text-transform:uppercase; letter-spacing:1px; }
   .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:8px; }
   .card {
@@ -19,13 +22,8 @@
     border:2px solid #2a2a2e; cursor:pointer; position:relative;
     transition:background .3s, border-color .3s;
     display:flex; align-items:center; gap:8px;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    -webkit-touch-callout: none;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none; touch-action: manipulation;
   }
 
   .dots { display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
@@ -78,6 +76,7 @@
   .settings-panel textarea { width:100%; height:70px; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:8px; padding:8px; font-size:11px; font-family:monospace; -webkit-user-select:text; user-select:text; }
   .settings-panel .maxrow { display:flex; gap:8px; align-items:center; background:#1c1c1f; padding:10px; border-radius:10px; margin-bottom:8px; }
   .settings-panel .maxrow input { width:60px; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:6px; padding:6px; font-size:14px; text-align:center; -webkit-user-select:text; user-select:text; }
+  .settings-panel .maxrow input.room { width:auto; flex:1; text-align:center; letter-spacing:3px; text-transform:uppercase; font-size:16px; font-weight:700; }
 
   .banner { background:#2b2210; color:#ffb020; border-radius:10px; padding:10px 12px; font-size:12px; margin-bottom:12px; }
   .banner b { color:#fff; }
@@ -86,7 +85,7 @@
 <body>
 
 <h1>
-  <span>🔥 Таймеры углей</span>
+  <span>🔥 Таймеры углей <span id="syncDot" class="sync-dot off">●</span></span>
   <span class="gear" onclick="openSettings()">⚙️</span>
 </h1>
 
@@ -114,6 +113,9 @@
 <div class="settings-panel" id="panel">
   <h3>⚙️ Настройки <button class="close" onclick="closeSettings()">✕</button></h3>
 
+  <div class="section-title">📡 Синхронизация</div>
+  <div id="syncPanel"></div>
+
   <button class="big-btn" onclick="testSound()">🔊 Проверить звук</button>
 
   <div class="section-title">Максимум замен</div>
@@ -135,28 +137,42 @@
   <button class="big-btn red" onclick="factoryReset()">🗑 Сбросить всё к заводским</button>
 </div>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
 <script>
-/* Запрещаем контекстное меню (долгое нажатие → лупа/меню) на карточках */
-document.addEventListener('contextmenu', (e) => {
-  if (e.target.closest('.card')) e.preventDefault();
-});
-/* И на всей странице, кроме полей ввода и текстовых областей */
-document.addEventListener('contextmenu', (e) => {
-  const t = e.target;
-  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') return;
-  if (t.closest('.card')) return;
-  e.preventDefault();
-});
+/* ============================================================
+   FIREBASE ИНИЦИАЛИЗАЦИЯ
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyCQRfBH1WB5Hwm4CrlKlljjF3kK0nNKoFA",
+  authDomain: "hookah-timers.firebaseapp.com",
+  databaseURL: "https://hookah-timers-default-rtdb.firebaseio.com",
+  projectId: "hookah-timers",
+  storageBucket: "hookah-timers.firebasestorage.app",
+  messagingSenderId: "665579658753",
+  appId: "1:665579658753:web:522673247252e466d3aa00"
+};
 
+let db = null;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+} catch(e) {
+  console.warn('Firebase init failed:', e);
+}
+
+/* ============================================================
+   СОСТОЯНИЕ
+   ============================================================ */
 const DEFAULT_MAX_CHANGES = 4;
-
 const DEFAULT_TABLES = [
   ...Array.from({length:7},  (_,i) => ({ id:'t'+(i+1),  name:'Стол '+(i+1),  color:'#4caf50', intervalMin:18 })),
   ...Array.from({length:2},  (_,i) => ({ id:'t'+(i+8),  name:'Стол '+(i+8),  color:'#9e9e9e', intervalMin:18 })),
   ...Array.from({length:5},  (_,i) => ({ id:'vip'+(i+1),name:'VIP '+(i+1),   color:'#ffb020', intervalMin:18 })),
   ...Array.from({length:13}, (_,i) => ({ id:'t'+(i+15), name:'Стол '+(i+15), color:'#2f6bff', intervalMin:18 })),
 ];
-
 const WARN_BEFORE_SEC = 60;
 const LONG_PRESS_MS = 1500;
 
@@ -164,6 +180,13 @@ let tables = [];
 let guests = [];
 let maxChanges = DEFAULT_MAX_CHANGES;
 
+let roomCode = null;
+let roomRef = null;
+let suppressWrite = false;
+
+/* ============================================================
+   ЗАГРУЗКА / СОХРАНЕНИЕ
+   ============================================================ */
 function loadState() {
   try {
     const t = JSON.parse(localStorage.getItem('hookah_tables') || 'null');
@@ -188,68 +211,165 @@ function saveState() {
     localStorage.setItem('hookah_guests', JSON.stringify(guests.map(g => ({...g, startedAt:null}))));
     localStorage.setItem('hookah_maxChanges', maxChanges);
   } catch(e) {}
-}
-
-function setMaxChanges(v) {
-  v = parseInt(v, 10);
-  if (isNaN(v) || v < 1) v = 1;
-  if (v > 10) v = 10;
-  maxChanges = v;
-  saveState(); render(); renderTableSettings();
-}
-
-function addGuest(){
-  const nameEl = document.getElementById('guestName');
-  const minEl  = document.getElementById('guestMin');
-  const name = nameEl.value.trim();
-  const min  = parseInt(minEl.value,10);
-  if(!name || !min || min<1){ alert('Введи имя и минуты'); return; }
-  guests.push({ id:'g_'+Date.now(), name, intervalMin:min, color:'#9c27b0', startedAt:null, changes:0 });
-  nameEl.value=''; minEl.value=20;
-  saveState(); render();
-}
-function removeGuest(id){
-  if(!confirm('Удалить гостя?')) return;
-  guests = guests.filter(g=>g.id!==id);
-  saveState(); render(); renderTableSettings();
-}
-
-function addTable(){
-  const colors = ['#4caf50','#9e9e9e','#ffb020','#2f6bff','#e91e63','#9c27b0','#00bcd4','#ff5722'];
-  const color = colors[tables.length % colors.length];
-  const nextNum = tables.length + 1;
-  tables.push({ id:'t_'+Date.now(), name:'Стол '+nextNum, color, intervalMin:18, startedAt:null, changes:0 });
-  saveState(); render(); renderTableSettings();
-}
-function removeTable(id){
-  if(!confirm('Удалить стол?')) return;
-  tables = tables.filter(t => t.id !== id);
-  saveState(); render(); renderTableSettings();
-}
-function moveTable(id, dir){
-  const i = tables.findIndex(t => t.id === id);
-  if(i < 0) return;
-  const j = i + dir;
-  if(j < 0 || j >= tables.length) return;
-  [tables[i], tables[j]] = [tables[j], tables[i]];
-  saveState(); render(); renderTableSettings();
-}
-
-function startAllTables(){
-  const now = Date.now();
-  tables.forEach(t => { if(!t.startedAt) t.startedAt = now; });
-  render(); beep();
-}
-function resetAll(){
-  if(!confirm('Сбросить все таймеры и замены?')) return;
-  tables.forEach(t => { t.startedAt = null; t.changes = 0; });
-  guests.forEach(g => { g.startedAt = null; g.changes = 0; });
-  saveState(); render();
+  writeToCloud();
 }
 
 /* ============================================================
-   ОБРАБОТКА НАЖАТИЙ — тап = замена, удержание 1.5с = сброс
+   СИНХРОНИЗАЦИЯ
    ============================================================ */
+function writeToCloud() {
+  if (!roomRef || suppressWrite) return;
+  try {
+    roomRef.child('state').set({
+      tables,
+      guests,
+      maxChanges,
+      lastUpdate: Date.now()
+    });
+  } catch(e) { console.warn('write failed', e); }
+}
+
+function joinRoom(code) {
+  if (!db) { alert('Firebase не загружен. Проверь интернет.'); return; }
+  code = String(code || '').toUpperCase().trim();
+  if (!code) return;
+
+  // Отписываемся от старой комнаты
+  if (roomRef) { try { roomRef.off(); } catch(e){} }
+
+  roomCode = code;
+  localStorage.setItem('hookah_roomCode', code);
+  roomRef = db.ref('rooms/' + code);
+
+  roomRef.child('state').on('value', snap => {
+    const data = snap.val();
+    if (!data) {
+      // Комната пустая — отправляем свои данные
+      writeToCloud();
+      return;
+    }
+    suppressWrite = true;
+    if (Array.isArray(data.tables)) {
+      tables = data.tables.map(t => ({ ...t, changes: typeof t.changes === 'number' ? t.changes : 0 }));
+    }
+    if (Array.isArray(data.guests)) {
+      guests = data.guests.map(g => ({ ...g, changes: typeof g.changes === 'number' ? g.changes : 0 }));
+    }
+    if (typeof data.maxChanges === 'number') maxChanges = data.maxChanges;
+
+    // Сохраняем в localStorage без startedAt (как обычно)
+    try {
+      localStorage.setItem('hookah_tables', JSON.stringify(tables.map(t => ({...t, startedAt:null}))));
+      localStorage.setItem('hookah_guests', JSON.stringify(guests.map(g => ({...g, startedAt:null}))));
+      localStorage.setItem('hookah_maxChanges', maxChanges);
+    } catch(e) {}
+
+    render();
+    renderTableSettings();
+    renderSyncPanel();
+    const el = document.getElementById('maxChangesInput');
+    if (el) el.value = maxChanges;
+
+    suppressWrite = false;
+  });
+
+  renderSyncPanel();
+  updateSyncDot();
+  beep();
+}
+
+function leaveRoom() {
+  if (!confirm('Отключиться от комнаты? Данные останутся локально.')) return;
+  if (roomRef) { try { roomRef.off(); } catch(e){} }
+  roomRef = null;
+  roomCode = null;
+  localStorage.removeItem('hookah_roomCode');
+  renderSyncPanel();
+  updateSyncDot();
+}
+
+function createRoom() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  joinRoom(code);
+}
+
+function joinRoomFromInput() {
+  const el = document.getElementById('roomCodeInput');
+  if (!el) return;
+  const code = el.value.trim().toUpperCase();
+  if (!code || code.length < 4) { alert('Введи код комнаты (4–8 символов)'); return; }
+  joinRoom(code);
+}
+
+function copyRoomCode() {
+  if (!roomCode) return;
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = roomCode;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    alert('Код скопирован: ' + roomCode);
+  } catch(e) { alert('Код: ' + roomCode); }
+}
+
+function updateSyncDot() {
+  const el = document.getElementById('syncDot');
+  if (!el) return;
+  if (roomCode && roomRef) {
+    el.className = 'sync-dot on';
+    el.textContent = '●';
+  } else {
+    el.className = 'sync-dot off';
+    el.textContent = '●';
+  }
+}
+
+function renderSyncPanel() {
+  const el = document.getElementById('syncPanel');
+  if (!el) return;
+
+  if (!db) {
+    el.innerHTML = '<div style="color:#888;font-size:12px;padding:8px">Firebase не загрузился. Проверь интернет и перезагрузи приложение.</div>';
+    return;
+  }
+
+  if (roomCode && roomRef) {
+    el.innerHTML = `
+      <div class="maxrow">
+        <div style="flex:1">
+          <div style="font-size:11px;color:#888">Комната</div>
+          <div style="font-size:20px;font-weight:700;letter-spacing:3px">${roomCode}</div>
+        </div>
+        <button onclick="copyRoomCode()" style="background:#2f6bff;border:none;color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">Копировать</button>
+      </div>
+      <div style="font-size:11px;color:#888;margin:6px 0 4px">Введи этот же код на другом устройстве, чтобы они синхронизировались.</div>
+      <button class="big-btn gray" onclick="leaveRoom()">Отключиться от комнаты</button>
+    `;
+  } else {
+    el.innerHTML = `
+      <div class="maxrow" style="flex-direction:column;align-items:stretch;gap:6px">
+        <input type="text" id="roomCodeInput" class="room" placeholder="КОД" maxlength="8">
+        <button class="big-btn" onclick="joinRoomFromInput()">Подключиться к комнате</button>
+        <button class="big-btn gray" onclick="createRoom()">Создать новую комнату</button>
+      </div>
+      <div style="font-size:11px;color:#888;margin-top:8px">Создай комнату на планшете и введи код на телефоне — они будут синхронизированы.</div>
+    `;
+  }
+}
+
+/* ============================================================
+   НАЖАТИЯ
+   ============================================================ */
+document.addEventListener('contextmenu', (e) => {
+  const t = e.target;
+  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') return;
+  e.preventDefault();
+});
+
 let pressState = {};
 
 document.addEventListener('touchstart', (e) => {
@@ -293,9 +413,7 @@ document.addEventListener('touchend', (e) => {
   const st = pressState[id];
   if (!st) return;
   clearTimeout(st.timer);
-  if (!st.fired) {
-    onCardClick(listName, id);
-  }
+  if (!st.fired) onCardClick(listName, id);
   delete pressState[id];
 }, {passive:true});
 
@@ -314,20 +432,21 @@ document.addEventListener('click', (e) => {
   onCardClick(card.dataset.list, card.dataset.id);
 });
 
+/* ============================================================
+   ЛОГИКА КАРТОЧЕК
+   ============================================================ */
 function onCardClick(listName, id){
   const list = listName === 'tables' ? tables : guests;
   const item = list.find(x => x.id === id);
   if(!item) return;
 
   const now = Date.now();
-
   if (!item.startedAt) {
     item.startedAt = now;
   } else {
     item.changes = Math.min(item.changes + 1, 99);
     item.startedAt = now;
   }
-
   saveState(); render(); beep();
 }
 
@@ -341,6 +460,69 @@ function longReset(listName, id){
   saveState(); render(); beep();
 }
 
+/* ============================================================
+   ГОСТИ / СТОЛЫ
+   ============================================================ */
+function addGuest(){
+  const nameEl = document.getElementById('guestName');
+  const minEl  = document.getElementById('guestMin');
+  const name = nameEl.value.trim();
+  const min  = parseInt(minEl.value,10);
+  if(!name || !min || min<1){ alert('Введи имя и минуты'); return; }
+  guests.push({ id:'g_'+Date.now(), name, intervalMin:min, color:'#9c27b0', startedAt:null, changes:0 });
+  nameEl.value=''; minEl.value=20;
+  saveState(); render();
+}
+function removeGuest(id){
+  if(!confirm('Удалить гостя?')) return;
+  guests = guests.filter(g=>g.id!==id);
+  saveState(); render(); renderTableSettings();
+}
+
+function addTable(){
+  const colors = ['#4caf50','#9e9e9e','#ffb020','#2f6bff','#e91e63','#9c27b0','#00bcd4','#ff5722'];
+  const color = colors[tables.length % colors.length];
+  const nextNum = tables.length + 1;
+  tables.push({ id:'t_'+Date.now(), name:'Стол '+nextNum, color, intervalMin:18, startedAt:null, changes:0 });
+  saveState(); render(); renderTableSettings();
+}
+function removeTable(id){
+  if(!confirm('Удалить стол?')) return;
+  tables = tables.filter(t => t.id !== id);
+  saveState(); render(); renderTableSettings();
+}
+function moveTable(id, dir){
+  const i = tables.findIndex(t => t.id === id);
+  if(i < 0) return;
+  const j = i + dir;
+  if(j < 0 || j >= tables.length) return;
+  [tables[i], tables[j]] = [tables[j], tables[i]];
+  saveState(); render(); renderTableSettings();
+}
+
+function startAllTables(){
+  const now = Date.now();
+  tables.forEach(t => { if(!t.startedAt) t.startedAt = now; });
+  saveState(); render(); beep();
+}
+function resetAll(){
+  if(!confirm('Сбросить все таймеры и замены?')) return;
+  tables.forEach(t => { t.startedAt = null; t.changes = 0; });
+  guests.forEach(g => { g.startedAt = null; g.changes = 0; });
+  saveState(); render();
+}
+
+function setMaxChanges(v){
+  v = parseInt(v, 10);
+  if (isNaN(v) || v < 1) v = 1;
+  if (v > 10) v = 10;
+  maxChanges = v;
+  saveState(); render(); renderTableSettings();
+}
+
+/* ============================================================
+   ФОРМАТ / ОТРИСОВКА
+   ============================================================ */
 function fmt(sec){
   sec = Math.abs(Math.floor(sec));
   const m = Math.floor(sec/60);
@@ -356,14 +538,9 @@ function cardHTML(item, listName){
     const interval = item.intervalMin * 60 * 1000;
     const elapsed  = now - item.startedAt;
     const remain   = interval - elapsed;
-
-    if(remain > WARN_BEFORE_SEC*1000){
-      cls='active'; time = fmt(remain/1000);
-    } else if(remain > 0){
-      cls='warn'; time = fmt(remain/1000); sub='СКОРО';
-    } else {
-      cls='overdue'; time = '+' + fmt(remain/1000); sub='МЕНЯТЬ';
-    }
+    if(remain > WARN_BEFORE_SEC*1000){ cls='active'; time = fmt(remain/1000); }
+    else if(remain > 0){ cls='warn'; time = fmt(remain/1000); sub='СКОРО'; }
+    else { cls='overdue'; time = '+' + fmt(remain/1000); sub='МЕНЯТЬ'; }
   }
 
   const delBtn = item.isGuest
@@ -410,12 +587,14 @@ function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;',
 function render(){
   document.getElementById('tables').innerHTML =
     tables.map(t => cardHTML(t, 'tables')).join('');
-
   document.getElementById('guests').innerHTML = guests.length
     ? guests.map(g => cardHTML({...g, isGuest:true}, 'guests')).join('')
     : '<div style="color:#666;font-size:13px;padding:8px">Добавь постоянных гостей ↑</div>';
 }
 
+/* ============================================================
+   ЗВУК
+   ============================================================ */
 let audioCtx = null;
 function unlockAudio(){
   try {
@@ -471,11 +650,15 @@ setInterval(() => {
 
 setInterval(render, 1000);
 
+/* ============================================================
+   НАСТРОЙКИ
+   ============================================================ */
 function openSettings(){
   document.getElementById('overlay').classList.add('open');
   document.getElementById('panel').classList.add('open');
   document.getElementById('maxChangesInput').value = maxChanges;
   renderTableSettings();
+  renderSyncPanel();
 }
 function closeSettings(){
   document.getElementById('overlay').classList.remove('open');
@@ -508,17 +691,19 @@ function renderTableSettings(){
     html + `<div class="section-title" style="margin-top:14px">Гости</div>` + guestsHtml;
 }
 
+/* ============================================================
+   ЭКСПОРТ / ИМПОРТ
+   ============================================================ */
 function exportSettings(){
   const data = {
     tables: tables.map(t => ({id:t.id, name:t.name, color:t.color, intervalMin:t.intervalMin})),
     guests: guests.map(g => ({id:g.id, name:g.name, color:g.color, intervalMin:g.intervalMin})),
-    maxChanges: maxChanges,
-    v: 3
+    maxChanges, v: 4
   };
   const text = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
   document.getElementById('exportArea').value = text;
   document.getElementById('exportArea').select();
-  try { document.execCommand('copy'); alert('Скопировано! Отправь этот текст напарнику.'); }
+  try { document.execCommand('copy'); alert('Скопировано!'); }
   catch(e){ alert('Текст в поле — скопируй его вручную.'); }
 }
 function importSettings(){
@@ -547,8 +732,18 @@ function factoryReset(){
   alert('Сброшено.');
 }
 
+/* ============================================================
+   СТАРТ
+   ============================================================ */
 loadState();
 render();
+updateSyncDot();
+
+// Автоподключение к сохранённой комнате
+const savedRoom = localStorage.getItem('hookah_roomCode');
+if (savedRoom && db) {
+  joinRoom(savedRoom);
+}
 </script>
 </body>
 </html>
