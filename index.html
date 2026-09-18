@@ -79,7 +79,7 @@
 </h1>
 
 <div class="banner" id="banner">
-  <b>Подсказка:</b> тап по столу → замена угля +кружок. Долгое нажатие (~0.8 сек) → сброс кружков.
+  <b>Подсказка:</b> тап по работающему столу → замена угля +кружок. Удержание 1.5 сек → сброс.
 </div>
 
 <h2>Столы</h2>
@@ -134,6 +134,7 @@ const DEFAULT_TABLES = [
 ];
 
 const WARN_BEFORE_SEC = 60;
+const LONG_PRESS_MS = 1500;
 
 let tables = [];
 let guests = [];
@@ -222,25 +223,74 @@ function resetAll(){
   saveState(); render();
 }
 
-let pressTimers = {};
-let longPressed = {};
+/* ============================================================
+   ОБРАБОТКА НАЖАТИЙ — тап = замена, удержание 1.5с = сброс
+   ============================================================ */
+let pressState = {};
 
-function onCardPressStart(listName, id){
-  longPressed[id] = false;
-  pressTimers[id] = setTimeout(() => {
-    longPressed[id] = true;
-    longReset(listName, id);
-  }, 800);
-}
-function onCardPressEnd(listName, id){
-  clearTimeout(pressTimers[id]);
-  if (longPressed[id]) { longPressed[id] = false; return; }
-  onCardClick(listName, id);
-}
-function onCardPressCancel(id){
-  clearTimeout(pressTimers[id]);
-  longPressed[id] = false;
-}
+document.addEventListener('touchstart', (e) => {
+  const card = e.target.closest('.card');
+  if (!card) return;
+  const id = card.dataset.id;
+  const listName = card.dataset.list;
+  const touch = e.touches[0];
+  pressState[id] = {
+    listName,
+    startX: touch.clientX,
+    startY: touch.clientY,
+    fired: false,
+    timer: setTimeout(() => {
+      if (pressState[id]) pressState[id].fired = true;
+      longReset(listName, id);
+    }, LONG_PRESS_MS)
+  };
+}, {passive:true});
+
+document.addEventListener('touchmove', (e) => {
+  const card = e.target.closest('.card');
+  if (!card) return;
+  const id = card.dataset.id;
+  const st = pressState[id];
+  if (!st) return;
+  const touch = e.touches[0];
+  const dx = Math.abs(touch.clientX - st.startX);
+  const dy = Math.abs(touch.clientY - st.startY);
+  if (dx > 10 || dy > 10) {
+    clearTimeout(st.timer);
+    delete pressState[id];
+  }
+}, {passive:true});
+
+document.addEventListener('touchend', (e) => {
+  const card = e.target.closest('.card');
+  if (!card) return;
+  const id = card.dataset.id;
+  const listName = card.dataset.list;
+  const st = pressState[id];
+  if (!st) return;
+  clearTimeout(st.timer);
+  if (!st.fired) {
+    onCardClick(listName, id);
+  }
+  delete pressState[id];
+}, {passive:true});
+
+document.addEventListener('touchcancel', (e) => {
+  const card = e.target.closest('.card');
+  if (!card) return;
+  const id = card.dataset.id;
+  const st = pressState[id];
+  if (st) { clearTimeout(st.timer); delete pressState[id]; }
+}, {passive:true});
+
+/* Клик мышью — для тестов на компьютере */
+document.addEventListener('click', (e) => {
+  if (e.pointerType === 'touch') return;
+  const card = e.target.closest('.card');
+  if (!card) return;
+  if (card.dataset.skipClick === '1') return;
+  onCardClick(card.dataset.list, card.dataset.id);
+});
 
 function onCardClick(listName, id){
   const list = listName === 'tables' ? tables : guests;
@@ -248,15 +298,13 @@ function onCardClick(listName, id){
   if(!item) return;
 
   const now = Date.now();
-  const interval = item.intervalMin * 60 * 1000;
-  const isOverdue = item.startedAt && (now - item.startedAt >= interval);
 
-  if (isOverdue) {
-    item.changes = Math.min(item.changes + 1, 99);
+  if (!item.startedAt) {
+    // Первый запуск — просто старт, без засчёта замены
     item.startedAt = now;
-  } else if (item.startedAt) {
-    item.startedAt = null;
   } else {
+    // Таймер уже идёт или просрочен — это замена угля
+    item.changes = Math.min(item.changes + 1, 99);
     item.startedAt = now;
   }
 
@@ -319,13 +367,7 @@ function cardHTML(item, listName){
 
   const safeId = String(item.id).replace(/'/g, "\\'");
 
-  return `<div class="card ${cls}" style="--c:${item.color};border-color:${borderColor};background:${bg}"
-    ontouchstart="onCardPressStart('${listName}','${safeId}')"
-    ontouchend="onCardPressEnd('${listName}','${safeId}')"
-    ontouchcancel="onCardPressCancel('${safeId}')"
-    onmousedown="onCardPressStart('${listName}','${safeId}')"
-    onmouseup="onCardPressEnd('${listName}','${safeId}')"
-    onmouseleave="onCardPressCancel('${safeId}')">
+  return `<div class="card ${cls}" data-id="${safeId}" data-list="${listName}" style="--c:${item.color};border-color:${borderColor};background:${bg}">
     ${delBtn}
     <div class="dots" style="--c:${item.color}">${dotsHTML}${extra}</div>
     <div class="card-body">
@@ -481,7 +523,7 @@ function factoryReset(){
   localStorage.removeItem('hookah_guests');
   localStorage.removeItem('hookah_maxChanges');
   loadState(); render(); renderTableSettings();
-  document.getElementById('maxChangesInput').value = maxChanges; это
+  document.getElementById('maxChangesInput').value = maxChanges;
   alert('Сброшено.');
 }
 
