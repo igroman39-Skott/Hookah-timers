@@ -9,12 +9,24 @@
 <title>Кальян — таймеры</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  body { margin:0; padding:12px; font-family:-apple-system, BlinkMacSystemFont, sans-serif; background:#0e0e10; color:#fff; padding-bottom:90px; }
+  body { margin:0; padding:12px; font-family:-apple-system, BlinkMacSystemFont, sans-serif; background:#0e0e10; color:#fff; padding-bottom:90px; -webkit-touch-callout:none; }
   h1 { font-size:20px; margin:0 0 4px; display:flex; justify-content:space-between; align-items:center; }
   h1 .gear { font-size:24px; cursor:pointer; padding:4px 8px; }
   h2 { font-size:13px; margin:16px 0 8px; color:#9a9aa0; text-transform:uppercase; letter-spacing:1px; }
   .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:8px; }
-  .card { background:#1c1c1f; border-radius:14px; padding:10px 8px; text-align:center; border:2px solid #2a2a2e; cursor:pointer; user-select:none; position:relative; transition:background .3s, border-color .3s; display:flex; align-items:center; gap:8px; }
+  .card {
+    background:#1c1c1f; border-radius:14px; padding:10px 8px; text-align:center;
+    border:2px solid #2a2a2e; cursor:pointer; position:relative;
+    transition:background .3s, border-color .3s;
+    display:flex; align-items:center; gap:8px;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
 
   .dots { display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
   .dot { width:11px; height:11px; border-radius:50%; background:#2a2a2e; border:1px solid #3a3a3e; transition:background .2s, border-color .2s, box-shadow .2s; }
@@ -53,8 +65,8 @@
   .settings-panel h3 { font-size:16px; margin:0 0 12px; display:flex; justify-content:space-between; }
   .settings-panel .close { background:none; border:none; color:#fff; font-size:22px; padding:0 4px; cursor:pointer; }
   .settings-panel .row { display:flex; gap:6px; align-items:center; margin-bottom:6px; padding:8px; background:#1c1c1f; border-radius:10px; }
-  .settings-panel .row input[type=text] { flex:1; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:6px; padding:6px 8px; font-size:13px; min-width:0; }
-  .settings-panel .row input[type=number] { width:56px; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:6px; padding:6px; font-size:13px; }
+  .settings-panel .row input[type=text] { flex:1; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:6px; padding:6px 8px; font-size:13px; min-width:0; -webkit-user-select:text; user-select:text; }
+  .settings-panel .row input[type=number] { width:56px; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:6px; padding:6px; font-size:13px; -webkit-user-select:text; user-select:text; }
   .settings-panel .row input[type=color] { width:36px; height:36px; border:none; background:none; padding:0; cursor:pointer; }
   .settings-panel .row button { background:#2a2a2e; border:none; color:#fff; border-radius:6px; padding:6px 8px; font-size:13px; cursor:pointer; }
   .settings-panel .row button.del { background:#5a1a1a; }
@@ -63,9 +75,9 @@
   .settings-panel .big-btn { width:100%; padding:12px; border-radius:10px; border:none; font-size:14px; font-weight:600; color:#fff; background:#2f6bff; margin-top:8px; cursor:pointer; }
   .settings-panel .big-btn.gray { background:#2a2a2e; }
   .settings-panel .big-btn.red { background:#5a1a1a; }
-  .settings-panel textarea { width:100%; height:70px; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:8px; padding:8px; font-size:11px; font-family:monospace; }
+  .settings-panel textarea { width:100%; height:70px; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:8px; padding:8px; font-size:11px; font-family:monospace; -webkit-user-select:text; user-select:text; }
   .settings-panel .maxrow { display:flex; gap:8px; align-items:center; background:#1c1c1f; padding:10px; border-radius:10px; margin-bottom:8px; }
-  .settings-panel .maxrow input { width:60px; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:6px; padding:6px; font-size:14px; text-align:center; }
+  .settings-panel .maxrow input { width:60px; background:#0e0e10; border:1px solid #2a2a2e; color:#fff; border-radius:6px; padding:6px; font-size:14px; text-align:center; -webkit-user-select:text; user-select:text; }
 
   .banner { background:#2b2210; color:#ffb020; border-radius:10px; padding:10px 12px; font-size:12px; margin-bottom:12px; }
   .banner b { color:#fff; }
@@ -124,6 +136,18 @@
 </div>
 
 <script>
+/* Запрещаем контекстное меню (долгое нажатие → лупа/меню) на карточках */
+document.addEventListener('contextmenu', (e) => {
+  if (e.target.closest('.card')) e.preventDefault();
+});
+/* И на всей странице, кроме полей ввода и текстовых областей */
+document.addEventListener('contextmenu', (e) => {
+  const t = e.target;
+  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') return;
+  if (t.closest('.card')) return;
+  e.preventDefault();
+});
+
 const DEFAULT_MAX_CHANGES = 4;
 
 const DEFAULT_TABLES = [
@@ -283,12 +307,10 @@ document.addEventListener('touchcancel', (e) => {
   if (st) { clearTimeout(st.timer); delete pressState[id]; }
 }, {passive:true});
 
-/* Клик мышью — для тестов на компьютере */
 document.addEventListener('click', (e) => {
   if (e.pointerType === 'touch') return;
   const card = e.target.closest('.card');
   if (!card) return;
-  if (card.dataset.skipClick === '1') return;
   onCardClick(card.dataset.list, card.dataset.id);
 });
 
@@ -300,10 +322,8 @@ function onCardClick(listName, id){
   const now = Date.now();
 
   if (!item.startedAt) {
-    // Первый запуск — просто старт, без засчёта замены
     item.startedAt = now;
   } else {
-    // Таймер уже идёт или просрочен — это замена угля
     item.changes = Math.min(item.changes + 1, 99);
     item.startedAt = now;
   }
